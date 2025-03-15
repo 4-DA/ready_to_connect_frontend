@@ -26,15 +26,19 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark relative overflow-hidden">
+    <div
+      className="min-h-screen flex items-center justify-center bg-dark relative overflow-hidden"
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
+    >
       <AnimatedBackground />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md p-8 space-y-8 bg-dark-light rounded-xl shadow-lg backdrop-blur-sm bg-opacity-70 z-10 relative"
+        className="w-full max-w-md p-8 space-y-8 bg-dark-light rounded-xl shadow-lg backdrop-blur-sm bg-opacity-70 z-30 relative"
       >
+        {/* Rest of your login form remains the same */}
         <motion.div
           className="text-center"
           initial={{ opacity: 0 }}
@@ -183,4 +187,5 @@ const Login = () => {
     </div>
   );
 };
+
 export default Login;
