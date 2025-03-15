@@ -1,6 +1,12 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import EmailIcon from '@mui/icons-material/Email';
+import LockIcon from '@mui/icons-material/Lock';
+import PersonIcon from '@mui/icons-material/Person';
+import HowToRegIcon from '@mui/icons-material/HowToReg';
+import AnimatedBackground from '../ui/AnimatedBackground';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -24,70 +30,127 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark">
-      <div className="w-full max-w-md p-8 space-y-8 bg-dark-light rounded-xl shadow-lg">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white">READY TO CONNECT</h1>
-          <p className="mt-2 text-gray-400">Create your account</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-dark relative overflow-hidden">
+      <AnimatedBackground />
+      
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md p-8 space-y-8 bg-dark-light rounded-xl shadow-lg backdrop-blur-sm bg-opacity-70 z-10 relative"
+      >
+        <motion.div 
+          className="text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          <motion.h1 
+            className="text-3xl font-bold text-white"
+            initial={{ y: -20 }}
+            animate={{ y: 0 }}
+            transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
+          >
+            READY TO CONNECT
+          </motion.h1>
+          <motion.div 
+            className="mt-2 h-1 w-20 bg-primary-light mx-auto rounded-full"
+            initial={{ width: 0 }}
+            animate={{ width: 80 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          />
+          <p className="mt-4 text-gray-400">Create your account</p>
+        </motion.div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <div>
-              <label htmlFor="fullName" className="sr-only">Full Name</label>
-              <input
-                id="fullName"
-                name="fullName"
-                type="text"
-                required
-                className="w-full px-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
-                placeholder="Full Name"
-                value={formData.fullName}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="sr-only">Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                className="w-full px-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="w-full px-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="sr-only">Confirm Password</label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                className="w-full px-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
-            </div>
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              <div className="relative">
+                <PersonIcon className="absolute left-3 top-3.5 text-gray-500" fontSize="small" />
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
+                  placeholder="Full Name"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                />
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+            >
+              <div className="relative">
+                <EmailIcon className="absolute left-3 top-3.5 text-gray-500" fontSize="small" />
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
+                  placeholder="Email address"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              <div className="relative">
+                <LockIcon className="absolute left-3 top-3.5 text-gray-500" fontSize="small" />
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+            >
+              <div className="relative">
+                <LockIcon className="absolute left-3 top-3.5 text-gray-500" fontSize="small" />
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  className="w-full pl-10 pr-4 py-3 bg-dark-lighter border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                />
+              </div>
+            </motion.div>
           </div>
 
-          <div className="flex items-center">
+          <motion.div 
+            className="flex items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.5 }}
+          >
             <input
               id="terms"
               name="terms"
@@ -96,29 +159,41 @@ const Signup = () => {
               className="h-4 w-4 rounded border-gray-700 text-primary focus:ring-primary-light"
             />
             <label htmlFor="terms" className="ml-2 block text-sm text-gray-400">
-              I agree to the <a href="#" className="text-primary-light">Terms</a> and <a href="#" className="text-primary-light">Privacy Policy</a>
+              I agree to the <a href="#" className="text-primary-light hover:text-primary">Terms</a> and <a href="#" className="text-primary-light hover:text-primary">Privacy Policy</a>
             </label>
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+          >
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              className="group relative w-full flex items-center justify-center py-3 px-4 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary overflow-hidden"
             >
-              Sign up
+              <span className="absolute right-0 h-full w-12 flex items-center justify-center bg-primary-dark group-hover:translate-x-0 transition-transform -translate-x-full duration-200">
+                <HowToRegIcon />
+              </span>
+              <span className="group-hover:-translate-x-2 transition-transform duration-200">Sign up</span>
             </button>
-          </div>
+          </motion.div>
         </form>
 
-        <div className="mt-6 text-center">
+        <motion.div 
+          className="mt-6 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.5 }}
+        >
           <p className="text-gray-400">
             Already have an account?{' '}
             <Link to="/login" className="text-primary-light hover:text-primary font-medium">
               Sign in
             </Link>
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
