@@ -1,18 +1,21 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import GamingDashboard from "../components/gamification/GamingDashboard";
+import Sidebar from "../components/dashboard/Sidebar";
+import Header from "../components/dashboard/Header";
 
-export default function MainDashboard() {
+const MainDashboard = () => {
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Main Dashboard</h1>
-      <p>Welcome to the core application dashboard.</p>
-      
-      {/* Button to Access Gaming Dashboard */}
-      <Link to="/gaming-dashboard">
-        <button className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">
-          🎮 Enter Gamification Mode
-        </button>
-      </Link>
+    <div className="flex h-screen bg-gray-100">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-4">
+          <h1 className="text-2xl font-bold mb-4">Gamification Dashboard</h1>
+          <GamingDashboard />
+        </main>
+      </div>
     </div>
   );
-}
+};
+
+export default MainDashboard;

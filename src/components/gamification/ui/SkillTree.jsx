@@ -1,25 +1,30 @@
+import React, { useEffect, useState } from "react";
+import { Fire } from "lucide-react";
 import { useGamification } from "../../../context/GamificationContext";
 
-export default function SkillTree() {
-  const { level } = useGamification();
-  const skills = [
-    { id: 1, name: "Introduction", unlocked: true },
-    { id: 2, name: "Intermediate Concepts", unlocked: level >= 2 },
-    { id: 3, name: "Advanced Concepts", unlocked: level >= 3 },
-  ];
+export default function StreakCounter() {
+  const { streak, checkStreak } = useGamification();
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    checkStreak();
+  }, []);
+
+  useEffect(() => {
+    if (streak > 0) {
+      setMessage(`🔥 You're on a ${streak}-day streak!`);
+    } else {
+      setMessage("Start a new streak today!");
+    }
+  }, [streak]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {skills.map((skill) => (
-        <div
-          key={skill.id}
-          className={`p-4 border-2 rounded-lg text-center ${
-            skill.unlocked ? "border-green-500" : "border-gray-400 opacity-50"
-          }`}
-        >
-          {skill.name}
-        </div>
-      ))}
+    <div className="p-4 bg-orange-50 border-l-4 border-orange-400 rounded-lg flex items-center">
+      <Fire className="text-orange-500 w-8 h-8 mr-3" />
+      <div>
+        <h3 className="text-lg font-bold text-orange-700">Streak Counter</h3>
+        <p className="text-sm text-gray-700">{message}</p>
+      </div>
     </div>
   );
 }

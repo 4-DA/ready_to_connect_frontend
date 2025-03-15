@@ -1,30 +1,24 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import Login from './components/auth/Login';
-import Signup from './components/auth/Signup';
-import Dashboard from './pages/Dashboard';
-
-function AnimatedRoutes() {
-  const location = useLocation();
-
-  return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </AnimatePresence>
-  );
-}
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import MainDashboard from "./pages/MainDashboard";
+import Dashboard from "./pages/Dashboard";
+import Login from "./components/auth/Login";
+import Signup from "./components/auth/Signup";
+import { GamificationProvider } from "./context/GamificationContext";
 
 function App() {
   return (
-    <Router>
-      <AnimatedRoutes />
-    </Router>
+    <GamificationProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/main-dashboard" element={<MainDashboard />} />
+          <Route path="/" element={<Login />} />
+        </Routes>
+      </BrowserRouter>
+    </GamificationProvider>
   );
 }
 
