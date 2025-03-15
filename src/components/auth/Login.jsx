@@ -41,14 +41,28 @@ const Login = () => {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          <motion.h1
-            className="text-3xl font-bold text-white"
-            initial={{ y: -20 }}
-            animate={{ y: 0 }}
-            transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
-          >
-            READY TO CONNECT
-          </motion.h1>
+          <div className="relative">
+            <motion.div
+              className="absolute -inset-1 bg-gradient-to-r from-primary-light via-purple-500 to-primary rounded-lg blur-lg opacity-75 z-0"
+              animate={{
+                opacity: [0.5, 0.8, 0.5],
+                scale: [0.98, 1.01, 0.98],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+            <motion.h1
+              className="text-3xl font-bold text-white relative z-10"
+              initial={{ y: -20 }}
+              animate={{ y: 0 }}
+              transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
+            >
+              READY TO CONNECT
+            </motion.h1>
+          </div>
           <motion.div
             className="mt-2 h-1 w-20 bg-primary-light mx-auto rounded-full"
             initial={{ width: 0 }}
