@@ -2,9 +2,9 @@ import React from "react";
 import { motion } from "framer-motion";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
-const Calendar = () => {
+const Calendar = ({ eventDates = [] }) => {
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
-  const today = 15; // Example: Highlight 15th as today
+  const today = new Date().getDate(); // Highlight today's date
 
   return (
     <motion.div
@@ -27,7 +27,11 @@ const Calendar = () => {
           <div
             key={day}
             className={`p-1 rounded-full ${
-              day === today ? "bg-primary text-white" : "text-gray-400"
+              day === today
+                ? "bg-primary text-white"
+                : eventDates.includes(day)
+                ? "bg-purple-500 text-white"
+                : "text-gray-400"
             }`}
           >
             {day}
