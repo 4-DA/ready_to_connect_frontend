@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,7 +25,7 @@ const Dashboard = () => {
       try {
         const studentId = user.id;
 
-        // Mock data for testing (replace with actual API calls)
+        // Mock data for testing
         const mockStudent = {
           skillLevel: 3,
           totalPoints: 1250,
@@ -88,13 +89,8 @@ const Dashboard = () => {
     );
   }
 
-  // Calculate stats dynamically with fallback values
+  // Calculate stats
   const stats = [
-    {
-      title: "Current Level",
-      value: student.skillLevel || 0,
-      gradient: "bg-gradient-to-r from-primary to-primary-dark",
-    },
     {
       title: "Points Earned",
       value: student.totalPoints || 0,
@@ -118,7 +114,7 @@ const Dashboard = () => {
     ? ((student.totalPoints % pointsPerLevel) / pointsPerLevel) * 100
     : 0;
 
-  // Prepare recent activities from notifications
+  // Prepare recent activities
   const activities = notifications
     .filter((notification) =>
       ["achievement", "application"].includes(notification.type)
@@ -134,61 +130,85 @@ const Dashboard = () => {
     .filter((internship) => internship.applicationDeadline)
     .map((internship) => new Date(internship.applicationDeadline).getDate());
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
-    <div className="relative min-h-screen bg-dark">
-      <AnimatedBackground />
-      <Sidebar />
-      <Header />
-      <div className="ml-64 pt-20 px-6 pb-6">
-        <div className="flex space-x-4 mb-6">
-          {stats.map((stat, index) => (
-            <StatsCard
-              key={index}
-              title={stat.title}
-              value={stat.value}
-              gradient={stat.gradient}
-            />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1">
-            <ProgressChart
-              progress={progressToNextLevel}
-              currentLevel={student.skillLevel || 0}
-            />
+    <div className="relative min-h-screen bg-dark flex flex-row w-screen overflow-x-hidden">
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <div
+        className={`flex-1 pl-6 pr-0 pt-20 pb-6 transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? "ml-0" : "ml-16"
+        }`}
+      >
+        <Header toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+          <div className="md:col-span-2">
+            <div className="flex flex-wrap gap-4 mb-6">
+              {stats.map((stat, index) => (
+                <div
+                  key={index}
+                  className="transform hover:scale-105 transition-transform duration-200"
+                >
+                  <StatsCard
+                    title={stat.title}
+                    value={stat.value}
+                    gradient={stat.gradient}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="bg-dark-lighter p-6 rounded-lg shadow-lg">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Recommended Internships
+              </h3>
+              <div className="space-y-4">
+                {internships.slice(0, 3).map((internship, index) => (
+                  <div
+                    key={index}
+                    className="transform hover:scale-[1.02] transition-transform duration-200"
+                  >
+                    <InternshipCard
+                      title={internship.title}
+                      company={
+                        internship.business?.companyName || "Unknown Company"
+                      }
+                      date={`Apply by ${new Date(
+                        internship.applicationDeadline
+                      ).toLocaleDateString()}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="md:col-span-1 space-y-4">
-            <h3 className="text-lg font-semibold text-white">
-              Recommended Internships
-            </h3>
-            {internships.slice(0, 3).map((internship, index) => (
-              <InternshipCard
-                key={index}
-                title={internship.title}
-                company={internship.business?.companyName || "Unknown Company"}
-                date={`Apply by ${new Date(
-                  internship.applicationDeadline
-                ).toLocaleDateString()}`}
-              />
-            ))}
-          </div>
-          <div className="md:col-span-1 space-y-4">
-            <Calendar eventDates={eventDates} />
-            <div>
+          <div className="md:col-span-1 space-y-6">
+            <div className="bg-dark-lighter p-6 rounded-lg shadow-lg">
+              <Calendar eventDates={eventDates} />
+            </div>
+            <div className="bg-dark-lighter p-6 rounded-lg shadow-lg">
               <h3 className="text-lg font-semibold text-white mb-4">
                 Recent Activity
               </h3>
-              {activities.map((activity, index) => (
-                <RecentActivity
-                  key={index}
-                  message={activity.message}
-                  date={activity.date}
-                />
-              ))}
+              <div className="space-y-4">
+                {activities.map((activity, index) => (
+                  <div
+                    key={index}
+                    className="transform hover:scale-[1.02] transition-transform duration-200"
+                  >
+                    <RecentActivity
+                      message={activity.message}
+                      date={activity.date}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
+      <AnimatedBackground />
     </div>
   );
 };

@@ -1,20 +1,25 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import React from "react";
+import MenuIcon from "@mui/icons-material/Menu";
 
-const Header = () => {
+const Header = ({ toggleSidebar, isSidebarOpen }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.2, duration: 0.5 }}
-      className="fixed top-0 left-64 right-0 h-16 bg-dark-light flex items-center justify-end px-6 shadow-md z-10"
-    >
-      <div className="flex items-center space-x-3">
-        <span className="text-white font-medium">John Doe</span>
-        <AccountCircleIcon className="text-primary-light" fontSize="large" />
+    <div className="flex justify-between items-center mb-6">
+      <div className="flex items-center">
+        {!isSidebarOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="text-white hover:text-gray-300 mr-4"
+          >
+            <MenuIcon />
+          </button>
+        )}
+        <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
       </div>
-    </motion.div>
+      <div className="text-white">
+        <span>John Doe</span>
+        {/* Add profile icon or other header content */}
+      </div>
+    </div>
   );
 };
 
