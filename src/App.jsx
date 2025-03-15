@@ -7,40 +7,37 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
+import { useAuth } from "./contexts/AuthContext";
 import Login from "./components/auth/Login";
 import Signup from "./components/auth/Signup";
 import Dashboard from "./pages/Dashboard";
-
-// Create an AuthLayout that doesn't include the Sidebar
-const AuthLayout = ({ children }) => {
-  return <div className="min-h-screen bg-dark relative">{children}</div>;
-};
+import GamingDashboard from "./pages/GamingDashboard";
 
 function AnimatedRoutes() {
+  const { user } = useAuth();
   const location = useLocation();
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Auth routes with AuthLayout */}
         <Route
           path="/login"
-          element={
-            <AuthLayout>
-              <Login />
-            </AuthLayout>
-          }
+          element={user ? <Navigate to="/dashboard" replace /> : <Login />}
         />
         <Route
           path="/signup"
+          element={user ? <Navigate to="/dashboard" replace /> : <Signup />}
+        />
+        <Route
+          path="/dashboard"
+          element={user ? <Dashboard /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/gaming"
           element={
-            <AuthLayout>
-              <Signup />
-            </AuthLayout>
+            user ? <GamingDashboard /> : <Navigate to="/login" replace />
           }
         />
-
-        {/* Dashboard route - keep as is */}
-        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </AnimatePresence>
