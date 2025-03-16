@@ -1,5 +1,10 @@
-import Dashboard from '@/components/Dashboard';
+import Dashboard from '@/components/Dashboard'
+import React from 'react'
 
-export default function Home() {
-  return <Dashboard />;
+const Home = () => {
+  return (
+    <Dashboard/>
+  )
 }
+
+export default Home
