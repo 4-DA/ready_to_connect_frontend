@@ -34,8 +34,7 @@ export default function Sidebar() {
     },
     { icon: <WorkIcon />, label: "Internships", href: "/internship" },
     { icon: <SchoolIcon />, label: "Courses", href: "/courses" },
-    { icon: <SettingsIcon />, label: "Settings", href: "/settings" },
-    { icon: <PersonIcon />, label: "Profile", href: "/profile" },
+    
   ];
 
   return (
