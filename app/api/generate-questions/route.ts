@@ -2,14 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-// Comprehensive API key check
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ CRITICAL: OpenAI API Key is missing!");
-}
+// IMPORTANT: THIS IS FOR TEMPORARY TESTING ONLY
+// Move this to an environment variable before deploying
+const API_KEY =
+  "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";
 
-// Safer OpenAI initialization
+// OpenAI initialization with hardcoded key
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
+  apiKey: API_KEY,
 });
 
 export async function POST(request: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
           {
             role: "system",
             content:
-              "You are an expert in creating educational quiz questions. Generate questions that test knowledge and understanding in the given subject area. Each question should have one clearly correct answer and several plausible but incorrect options. Provide a brief explanation for why the correct answer is right. Respond ONLY with a valid JSON array of question objects.",
+              "You are an expert in creating educational quiz questions. Generate questions that test knowledge and understanding in the given subject area. Each question should have one clearly correct answer and several plausible but incorrect options. Provide a brief explanation for why the correct answer is right. Your response must be a valid JSON array of question objects with these fields: question (string), options (array of strings), correctAnswerIndex (number), and explanation (string).",
           },
           {
             role: "user",
@@ -45,8 +45,6 @@ export async function POST(request: NextRequest) {
           },
         ],
         temperature: 0.7,
-        // Add response format hint for more consistent output
-        response_format: { type: "json_object" },
       });
     } catch (apiError) {
       console.error("OpenAI API Error:", apiError);
@@ -90,6 +88,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate questions format
+    if (!Array.isArray(questions?.questions)) {
+      // Try to handle the case where the JSON has a questions property
+      questions = Array.isArray(questions) ? questions : questions?.questions;
+    }
+
+    // Final check if we have an array
     if (!Array.isArray(questions) || questions.length === 0) {
       console.warn("❗ Invalid questions format");
       return NextResponse.json(
