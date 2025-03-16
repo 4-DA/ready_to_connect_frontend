@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // ✅ Use direct imports for all icons
+import GamesIcon from "@mui/icons-material/Games";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PersonIcon from "@mui/icons-material/Person";
 import WorkIcon from "@mui/icons-material/Work";
@@ -27,7 +28,7 @@ export default function Sidebar() {
     { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
     { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/AiMentor" },
     {
-      icon: <SignalCellularAltIcon />,
+      icon: <GamesIcon />,
       label: "Skills Assessment",
       href: "/SkillAssessment",
     },
