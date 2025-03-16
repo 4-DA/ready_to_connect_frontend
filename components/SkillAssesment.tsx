@@ -7,14 +7,16 @@ import {
   EmojiEvents as AwardIcon,
   LocalFireDepartment as FireIcon,
   Lock as LockIcon,
+  Code as CodeIcon,
+  Storage as StorageIcon,
+  Cloud as CloudIcon,
+  NetworkWifi as NetworkIcon,
+  Terminal as TerminalIcon,
 } from "@mui/icons-material";
 import Image from "next/image";
 import Sidebar from "./Sidebar";
-import Confetti from "react-confetti"; // npm install react-confetti
-// import useSound from "use-sound"; // npm install use-sound for sound effects
-// import correctSound from "./sounds/correct.mp3"; // Add your sound files
-// import incorrectSound from "./sounds/incorrect.mp3";
-// import levelUpSound from "./sounds/levelup.mp3";
+import Confetti from "react-confetti";
+import APIQuizComponent from "./APIQuiz";
 
 // Define the type for a single skill
 interface Skill {
@@ -32,7 +34,7 @@ interface Skill {
   }[];
 }
 
-export default function SkillAssessments() {
+export default function SkillAssessmentsWithAPI() {
   const [userXP, setUserXP] = useState(750);
   const [streak, setStreak] = useState(5);
   const [currentSkillIndex, setCurrentSkillIndex] = useState<number | null>(
@@ -43,9 +45,9 @@ export default function SkillAssessments() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [lives, setLives] = useState(3);
-  // const [playCorrect] = useSound(correctSound);
-  // const [playIncorrect] = useSound(incorrectSound);
-  // const [playLevelUp] = useSound(levelUpSound);
+  const [activeTab, setActiveTab] = useState<"skills" | "api-quizzes">(
+    "skills"
+  );
 
   const [skills, setSkills] = useState<Skill[]>([
     {
@@ -84,7 +86,7 @@ export default function SkillAssessments() {
       locked: false,
       questions: [
         {
-          question: "What’s the first step in problem-solving?",
+          question: "What's the first step in problem-solving?",
           options: [
             "Write code",
             "Test the solution",
@@ -131,7 +133,7 @@ export default function SkillAssessments() {
       locked: false,
       questions: [
         {
-          question: "What’s key to effective communication?",
+          question: "What's key to effective communication?",
           options: [
             "Speaking loudly",
             "Active listening",
@@ -149,6 +151,7 @@ export default function SkillAssessments() {
     },
   ]);
 
+  // Functions for base skill assessment
   const getXPForLevel = (level: number) => level * 100;
   const getCurrentLevel = () => {
     let level = 1;
@@ -172,10 +175,13 @@ export default function SkillAssessments() {
 
     setIsCorrect(correct);
     setShowFeedback(true);
-    if (correct) playCorrect();
-    else playIncorrect();
 
-    if (!correct) setLives(lives - 1);
+    if (correct) {
+      playCorrect();
+    } else {
+      playIncorrect();
+      setLives(lives - 1);
+    }
 
     setTimeout(() => {
       setShowFeedback(false);
@@ -225,8 +231,8 @@ export default function SkillAssessments() {
   const mentorMessages = {
     welcome: "Hey coder! Ready to level up? 🦉",
     correct: "Great work! Keep it up! ✨",
-    incorrect: "Oops! Let’s try again! 💪",
-    levelUp: "Amazing! You’ve leveled up! 🎉",
+    incorrect: "Oops! Let's try again! 💪",
+    levelUp: "Amazing! You've leveled up! 🎉",
   };
 
   const styles = `
@@ -268,13 +274,13 @@ export default function SkillAssessments() {
       <div className="flex-1 p-6 pl-20">
         <header className="flex justify-between items-center mb-8 relative">
           <div className="flex items-center space-x-4">
-            <div className="bg-gray-700 rounded-full px-4 py-2 shadow-md flex items-center animate-pulse-once">
+            <div className="bg-gray-700 rounded-full px-4 py-2 shadow-md animate-pulse-once">
               <FireIcon className="mr-2 text-orange-300" />
               <span className="font-semibold text-lg">
                 {streak} Day Streak!
               </span>
             </div>
-            <div className="bg-gray-700 rounded-full px-4 py-2 shadow-md flex items-center">
+            <div className="bg-gray-700 rounded-full px-4 py-2 shadow-md">
               <AwardIcon className="mr-2 text-yellow-300" />
               <span className="font-semibold text-lg">
                 Level {getCurrentLevel()}
@@ -310,13 +316,17 @@ export default function SkillAssessments() {
               className="bg-indigo-600 h-4 rounded-full transition-all duration-1000 ease-out"
               style={{
                 width: `${
-                  ((userXP % 100) / getXPForLevel(getCurrentLevel() + 1)) * 100
+                  ((userXP % getXPForLevel(getCurrentLevel() + 1)) /
+                    getXPForLevel(getCurrentLevel() + 1)) *
+                  100
                 }%`,
               }}
             >
               <span className="absolute right-2 text-xs text-white">
                 {Math.round(
-                  ((userXP % 100) / getXPForLevel(getCurrentLevel() + 1)) * 100
+                  ((userXP % getXPForLevel(getCurrentLevel() + 1)) /
+                    getXPForLevel(getCurrentLevel() + 1)) *
+                    100
                 )}
                 %
               </span>
@@ -324,166 +334,226 @@ export default function SkillAssessments() {
           </div>
         </div>
 
-        {currentSkillIndex === null ? (
-          <div className="space-y-4">
-            {skills.map((skill, index) => (
-              <div
-                key={index}
-                className={`flex items-center gap-4 p-4 rounded-lg shadow-md transition-all duration-300 ${
-                  skill.locked
-                    ? "bg-gray-600 opacity-70 cursor-not-allowed"
-                    : "bg-gray-700 hover:bg-gray-600"
-                }`}
-              >
-                <div className="relative w-12 h-12">
-                  {skill.locked ? (
-                    <LockIcon className="text-gray-400 w-full h-full" />
-                  ) : (
-                    <>
-                      <svg className="w-full h-full" viewBox="0 0 36 36">
-                        <path
-                          className="text-gray-500"
-                          fill="none"
-                          strokeWidth="3"
-                          stroke="currentColor"
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        />
-                        <path
-                          className="text-indigo-400"
-                          fill="none"
-                          strokeWidth="3"
-                          strokeDasharray={`${skill.progress}, 100`}
-                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
-                          {skill.level}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-lg font-medium">{skill.name}</p>
-                  <p
-                    className={`text-sm ${getDifficultyColor(
-                      skill.difficulty
-                    )}`}
-                  >
-                    {skill.locked
-                      ? "Locked"
-                      : `${skill.difficulty} | Level ${skill.level}/${skill.maxLevel}`}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleStartAssessment(index)}
-                  disabled={skill.locked}
-                  className={`px-4 py-2 rounded-md text-md font-medium ${
-                    skill.locked
-                      ? "bg-gray-500 text-gray-400 cursor-not-allowed"
-                      : skill.completed
-                      ? "bg-green-500 text-white animate-pulse"
-                      : "bg-gray-500 text-white hover:bg-indigo-500"
-                  } transition-all duration-200`}
-                >
-                  {skill.locked
-                    ? "Locked"
-                    : skill.completed
-                    ? "Completed"
-                    : "Start"}
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() => setStreak(streak + 1)}
-              className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-indigo-500 transition-all duration-200"
-            >
-              Claim Streak Bonus!
-            </button>
-          </div>
-        ) : (
-          <div className="bg-gray-700 rounded-lg p-6 shadow-md">
-            {showConfetti && <Confetti />}
-            <h2 className="text-2xl font-semibold mb-4">
-              {skills[currentSkillIndex].questions[currentQuestion].question}
-            </h2>
-            <div className="flex justify-between mb-4 text-sm">
-              <span>
-                Lives:{" "}
-                {Array(lives).fill(
-                  <FireIcon className="text-red-400 inline" />
-                )}
-              </span>
-              <span>
-                Question {currentQuestion + 1}/
-                {skills[currentSkillIndex].questions.length}
-              </span>
-            </div>
-            <div className="grid gap-3">
-              {skills[currentSkillIndex].questions[currentQuestion].options.map(
-                (option, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => !showFeedback && handleAnswer(option)}
-                    disabled={showFeedback}
-                    className={`w-full p-3 border rounded-md text-md transition-all duration-200 ${
-                      showFeedback &&
-                      option ===
-                        skills[currentSkillIndex].questions[currentQuestion]
-                          .correctAnswer
-                        ? "border-green-500 bg-green-100 text-green-800 animate-bounce"
-                        : showFeedback
-                        ? "border-gray-500 opacity-50"
-                        : "border-gray-600 hover:border-indigo-500 hover:bg-gray-600"
+        {/* Tab Navigation */}
+        <div className="flex mb-6">
+          <button
+            className={`px-6 py-3 rounded-t-lg font-semibold transition-all duration-200 ${
+              activeTab === "skills"
+                ? "bg-gray-700 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+            onClick={() => setActiveTab("skills")}
+          >
+            Skill Assessments
+          </button>
+          <button
+            className={`px-6 py-3 rounded-t-lg font-semibold transition-all duration-200 ${
+              activeTab === "api-quizzes"
+                ? "bg-gray-700 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}
+            onClick={() => setActiveTab("api-quizzes")}
+          >
+            Technical Quizzes
+          </button>
+        </div>
+
+        {activeTab === "skills" ? (
+          <>
+            {currentSkillIndex === null ? (
+              <div className="space-y-4">
+                {skills.map((skill, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-center gap-4 p-4 rounded-lg shadow-md transition-all duration-300 ${
+                      skill.locked
+                        ? "bg-gray-600 opacity-70 cursor-not-allowed"
+                        : "bg-gray-700 hover:bg-gray-600"
                     }`}
                   >
-                    {option}
-                    {showFeedback &&
-                      option ===
-                        skills[currentSkillIndex].questions[currentQuestion]
-                          .correctAnswer && (
-                        <CheckIcon className="inline ml-2 text-green-500 animate-spin" />
+                    <div className="relative w-12 h-12">
+                      {skill.locked ? (
+                        <LockIcon className="text-gray-400 w-full h-full" />
+                      ) : (
+                        <>
+                          <svg className="w-full h-full" viewBox="0 0 36 36">
+                            <path
+                              className="text-gray-500"
+                              fill="none"
+                              strokeWidth="3"
+                              stroke="currentColor"
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path
+                              className="text-indigo-400"
+                              fill="none"
+                              strokeWidth="3"
+                              strokeDasharray={`${skill.progress}, 100`}
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-sm font-medium text-white">
+                              {skill.level}
+                            </span>
+                          </div>
+                        </>
                       )}
-                  </button>
-                )
-              )}
-            </div>
-            {showFeedback && (
-              <div
-                className={`mt-4 p-4 rounded-md ${
-                  isCorrect
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                } animate-fade-in`}
-              >
-                <div className="flex items-center">
-                  {isCorrect ? (
-                    <CheckIcon className="mr-2 text-xl animate-bounce" />
-                  ) : (
-                    <FireIcon className="mr-2 text-xl animate-pulse" />
-                  )}
-                  <span className="text-md">
-                    {isCorrect
-                      ? mentorMessages.correct
-                      : mentorMessages.incorrect}
-                    {isCorrect && " +10 XP!"}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-lg font-medium">{skill.name}</p>
+                      <p
+                        className={`text-sm ${getDifficultyColor(
+                          skill.difficulty
+                        )}`}
+                      >
+                        {skill.locked
+                          ? "Locked"
+                          : `${skill.difficulty} | Level ${skill.level}/${skill.maxLevel}`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleStartAssessment(index)}
+                      disabled={skill.locked}
+                      className={`px-4 py-2 rounded-md text-md font-medium ${
+                        skill.locked
+                          ? "bg-gray-500 text-gray-400 cursor-not-allowed"
+                          : skill.completed
+                          ? "bg-green-500 text-white animate-pulse"
+                          : "bg-gray-500 text-white hover:bg-indigo-500"
+                      } transition-all duration-200`}
+                    >
+                      {skill.locked
+                        ? "Locked"
+                        : skill.completed
+                        ? "Completed"
+                        : "Start"}
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setStreak(streak + 1)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-indigo-500 transition-all duration-200"
+                >
+                  Claim Streak Bonus!
+                </button>
+              </div>
+            ) : (
+              <div className="bg-gray-700 rounded-lg p-6 shadow-md">
+                {showConfetti && <Confetti />}
+                <h2 className="text-2xl font-semibold mb-4">
+                  {
+                    skills[currentSkillIndex].questions[currentQuestion]
+                      .question
+                  }
+                </h2>
+                <div className="flex justify-between mb-4 text-sm">
+                  <span>
+                    Lives:{" "}
+                    {Array(lives)
+                      .fill(0)
+                      .map((_, idx) => (
+                        <FireIcon key={idx} className="text-red-400 inline" />
+                      ))}
+                  </span>
+                  <span>
+                    Question {currentQuestion + 1}/
+                    {skills[currentSkillIndex].questions.length}
                   </span>
                 </div>
-                {!isCorrect && (
-                  <p className="mt-2 text-sm">
-                    Correct:{" "}
-                    {
-                      skills[currentSkillIndex].questions[currentQuestion]
-                        .correctAnswer
-                    }
-                  </p>
+                <div className="grid gap-3">
+                  {skills[currentSkillIndex].questions[
+                    currentQuestion
+                  ].options.map((option, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => !showFeedback && handleAnswer(option)}
+                      disabled={showFeedback}
+                      className={`w-full p-3 border rounded-md text-md transition-all duration-200 ${
+                        showFeedback &&
+                        option ===
+                          skills[currentSkillIndex].questions[currentQuestion]
+                            .correctAnswer
+                          ? "border-green-500 bg-green-100 text-green-800 animate-bounce"
+                          : showFeedback
+                          ? "border-gray-500 opacity-50"
+                          : "border-gray-600 hover:border-indigo-500 hover:bg-gray-600"
+                      }`}
+                    >
+                      {option}
+                      {showFeedback &&
+                        option ===
+                          skills[currentSkillIndex].questions[currentQuestion]
+                            .correctAnswer && (
+                          <CheckIcon className="inline ml-2 text-green-500 animate-spin" />
+                        )}
+                    </button>
+                  ))}
+                </div>
+                {showFeedback && (
+                  <div
+                    className={`mt-4 p-4 rounded-md ${
+                      isCorrect
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    } animate-fade-in`}
+                  >
+                    <div className="flex items-center">
+                      {isCorrect ? (
+                        <CheckIcon className="mr-2 text-xl animate-bounce" />
+                      ) : (
+                        <FireIcon className="mr-2 text-xl animate-pulse" />
+                      )}
+                      <span className="text-md">
+                        {isCorrect
+                          ? mentorMessages.correct
+                          : mentorMessages.incorrect}
+                        {isCorrect && " +10 XP!"}
+                      </span>
+                    </div>
+                    {!isCorrect && (
+                      <p className="mt-2 text-sm">
+                        Correct:{" "}
+                        {
+                          skills[currentSkillIndex].questions[currentQuestion]
+                            .correctAnswer
+                        }
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
+          </>
+        ) : (
+          // Show API Quiz Component when the API Quizzes tab is active
+          <div className="bg-gray-700 rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-600">
+              <h2 className="text-xl font-semibold text-indigo-300">
+                External Technical Quizzes
+              </h2>
+              <p className="text-gray-300 text-sm">
+                Test your skills with professionally curated questions from
+                across the tech industry
+              </p>
+            </div>
+            <APIQuizComponent />
           </div>
         )}
       </div>
     </div>
   );
+}
+
+// Mock for the playSound functions since sound library is commented out
+function playCorrect() {
+  console.log("Playing correct sound");
+}
+
+function playIncorrect() {
+  console.log("Playing incorrect sound");
+}
+
+function playLevelUp() {
+  console.log("Playing level up sound");
 }
