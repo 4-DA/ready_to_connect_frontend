@@ -5,7 +5,7 @@ import OpenAI from "openai";
 // IMPORTANT: THIS IS FOR TEMPORARY TESTING ONLY
 // Move this to an environment variable before deploying
 const API_KEY =
-  "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";
+  "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";
 
 // OpenAI initialization with hardcoded key
 const openai = new OpenAI({
