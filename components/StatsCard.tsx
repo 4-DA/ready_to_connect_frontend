@@ -8,8 +8,8 @@ import {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
-          title="Applications" 
-          value="5" 
+          title="Streak" 
+          value="5 Days" 
           bgClass="bg-gradient-to-r from-blue-500 to-blue-400"
           icon={<ApplicationsIcon />}
         />

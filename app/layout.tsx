@@ -7,8 +7,8 @@ import "./globals.css";
 
 
 export const metadata: Metadata = {
-  title: 'Student Dashboard',
-  description: 'Student internship and learning dashboard',
+  title: 'Ready to Conect Dashboard',
+  description: 'Internship dashboard',
 };
 
 export default function RootLayout({
