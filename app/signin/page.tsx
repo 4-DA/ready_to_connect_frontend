@@ -17,11 +17,11 @@ export default function Signin() {
     try {
       // Use axios instead of fetch
       const response = await axios.post(
-        "http://159.89.44.197:8000/api/accounts/login/",
+        `/api/accounts/login/`, // Changed from absolute URL to relative path
         credentials,
         {
           headers: { "Content-Type": "application/json" },
-          withCredentials: true, // This is equivalent to credentials: "include" in fetch
+          withCredentials: true,
         }
       );
 
