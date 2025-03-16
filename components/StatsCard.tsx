@@ -1,7 +1,8 @@
 import { 
     Description as ApplicationsIcon,
     Star as PointsIcon,
-    People as MentorshipIcon 
+    People as MentorshipIcon,
+    LocalFireDepartment as  LocalFireDepartmentIcon,
   } from '@mui/icons-material';
   
   export default function StatsCards() {
@@ -11,7 +12,7 @@ import {
           title="Streak" 
           value="5 Days" 
           bgClass="bg-gradient-to-r from-blue-500 to-blue-400"
-          icon={<ApplicationsIcon />}
+          icon={<LocalFireDepartmentIcon />}
         />
         <StatCard 
           title="Points Earned" 

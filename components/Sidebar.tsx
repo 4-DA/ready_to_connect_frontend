@@ -9,7 +9,10 @@ import {
   Settings as SettingsIcon,
   ExitToApp as LogoutIcon,
   Menu as MenuIcon,
-  ChevronLeft as ChevronLeftIcon
+  ChevronLeft as ChevronLeftIcon, 
+  AutoAwesome as AutoAwesomeIcon,
+  SignalCellularAlt as SignalCellularAltIcon,
+
 } from '@mui/icons-material';
 
 export default function Sidebar() {
@@ -25,10 +28,11 @@ export default function Sidebar() {
   };
 
   const navItems = [
-    { icon: <DashboardIcon />, label: 'Dashboard', href: '#', active: true },
-    { icon: <PersonIcon />, label: 'Profile', href: '#', active: false },
+    { icon: <DashboardIcon />, label: 'Dashboard', href: '/', active: true },
+    { icon: <AutoAwesomeIcon />, label: 'Ai Mentor', href: '/AiMentor', active: false }, 
+    { icon: <SignalCellularAltIcon />, label: 'Skills Assesment', href: '/SkillAssessment', active: false },
     { icon: <WorkIcon />, label: 'Internships', href: '#', active: false },
-    { icon: <SchoolIcon />, label: 'Education', href: '#', active: false },
+    { icon: <SchoolIcon />, label: 'Courses', href: '#', active: false },
     { icon: <SettingsIcon />, label: 'Settings', href: '#', active: false }
   ];
 
