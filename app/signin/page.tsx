@@ -17,14 +17,16 @@ export default function Signin() {
     try {
       // Use axios instead of fetch
       const response = await axios.post(
-        `/api/accounts/login/`, // Changed from absolute URL to relative path
+        "http://159.89.44.197:8000/api/accounts/login/",
         credentials,
         {
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://ready-to-connect-frontend.vercel.app",
+          },
           withCredentials: true,
         }
       );
-
       // Access the data directly from response.data
       const data = response.data;
 
