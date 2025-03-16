@@ -32,7 +32,7 @@ export default function Sidebar() {
       label: "Skills Assessment",
       href: "/SkillAssessment",
     },
-    { icon: <WorkIcon />, label: "Internships", href: "/internships" },
+    { icon: <WorkIcon />, label: "Internships", href: "/internship" },
     { icon: <SchoolIcon />, label: "Courses", href: "/courses" },
     { icon: <SettingsIcon />, label: "Settings", href: "/settings" },
     { icon: <PersonIcon />, label: "Profile", href: "/profile" },
