@@ -22,7 +22,6 @@ export default function Signin() {
         {
           headers: {
             "Content-Type": "application/json",
-            Origin: "https://ready-to-connect-frontend.vercel.app",
           },
           withCredentials: true,
         }
