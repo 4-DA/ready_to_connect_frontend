@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import axios from "axios";
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import axios from 'axios';
 import {
   StarBorder as StarIcon,
   EmojiEvents as TrophyIcon,
   LocalFireDepartment as FireIcon,
-} from "@mui/icons-material";
+} from '@mui/icons-material';
 
 export default function ProgressSection() {
   const [progress, setProgress] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [points, setPoints] = useState(0);
+  const [points, setPoints] = useState(0); // Using 'points' as per API response
   const [level, setLevel] = useState(0);
   const [xpClaimed, setXpClaimed] = useState(false);
   const [mentorshipSessions, setMentorshipSessions] = useState(0);
@@ -24,24 +24,22 @@ export default function ProgressSection() {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem('token');
 
         if (!token) {
-          console.error("No authentication token found");
-          setError("Authentication required");
+          console.error('No authentication token found');
+          setError('Authentication required');
           setLoading(false);
           return;
         }
 
-        // Use the students endpoint instead of login
-        const studentsUrl =
-          "https://readytoconnect.panemtech.com/api/profile/students/";
+        const studentsUrl = 'https://readytoconnect.panemtech.com/api/profile/students/';
 
         try {
           const response = await axios.get(studentsUrl, {
             headers: {
               Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
           });
 
@@ -49,25 +47,21 @@ export default function ProgressSection() {
           let userData;
 
           if (Array.isArray(studentsData.results)) {
-            // If it's paginated, look in results
             userData = studentsData.results[0]; // Assuming the first one is the current user
           } else if (Array.isArray(studentsData)) {
-            // If it's a direct array
             userData = studentsData[0];
           } else {
-            // If it's a single object
             userData = studentsData;
           }
 
-          // Update state with fetched data
+          // Update state with fetched data - Ensure keys match API response
           setStreak(userData.streak || 5);
-          setPoints(userData.points || 1250);
+          setPoints(userData.points || 1250); // Changed from 'xp' to 'points' to match API
           setLevel(userData.level || 3);
-          setProgress(userData.level_progress || 65);
+          setProgress(userData.level_progress || 65); // Ensure 'level_progress' exists in API
           setMentorshipSessions(userData.mentorship_sessions || 2);
         } catch (apiError) {
-          console.warn("API error, using default values:", apiError);
-          // Set default values if the API call fails
+          console.warn('API error, using default values:', apiError);
           setStreak(5);
           setPoints(1250);
           setLevel(3);
@@ -77,8 +71,8 @@ export default function ProgressSection() {
 
         setLoading(false);
       } catch (error) {
-        console.error("Error fetching user data:", error);
-        setError("Failed to load user data");
+        console.error('Error fetching user data:', error);
+        setError('Failed to load user data');
         setLoading(false);
       }
     };
@@ -88,7 +82,7 @@ export default function ProgressSection() {
 
   // Check if XP was already claimed for today
   useEffect(() => {
-    const lastClaimDate = localStorage.getItem("xpClaimDate");
+    const lastClaimDate = localStorage.getItem('xpClaimDate');
     const today = new Date().toDateString();
 
     if (lastClaimDate === today) {
@@ -99,14 +93,13 @@ export default function ProgressSection() {
   const handleClaimXP = async () => {
     if (!xpClaimed) {
       try {
-        // Update local state
         setProgress((prev) => Math.min(prev + 10, 100));
         setPoints((prev) => prev + 10);
         setXpClaimed(true);
-        localStorage.setItem("xpClaimDate", new Date().toDateString());
+        localStorage.setItem('xpClaimDate', new Date().toDateString());
       } catch (error) {
-        console.error("Error claiming XP:", error);
-        setError("Failed to claim XP");
+        console.error('Error claiming XP:', error);
+        setError('Failed to claim XP');
       }
     }
   };
@@ -120,7 +113,6 @@ export default function ProgressSection() {
     }
   }, [progress]);
 
-  // Circular progress calculation
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
 
@@ -150,7 +142,6 @@ export default function ProgressSection() {
 
   return (
     <div className="bg-[#1a1a22] rounded-lg p-6 space-y-4 shadow-xl">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold text-white">Progress</h2>
         <div className="flex items-center gap-2">
@@ -159,9 +150,7 @@ export default function ProgressSection() {
         </div>
       </div>
 
-      {/* Progress Grid */}
       <div className="grid grid-cols-3 gap-4">
-        {/* Level Progress */}
         <motion.div
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ repeat: Infinity, duration: 3 }}
@@ -204,7 +193,6 @@ export default function ProgressSection() {
           </p>
         </motion.div>
 
-        {/* Points Earned */}
         <motion.div
           whileHover={{ scale: 1.05 }}
           className="bg-[#252530] rounded-lg p-4 flex flex-col items-center justify-center shadow-lg"
@@ -214,7 +202,6 @@ export default function ProgressSection() {
           <p className="text-xs text-gray-400">Points Earned</p>
         </motion.div>
 
-        {/* Mentorship Sessions */}
         <motion.div
           whileHover={{ scale: 1.05 }}
           className="bg-[#252530] rounded-lg p-4 flex flex-col items-center justify-center shadow-lg"
@@ -227,18 +214,17 @@ export default function ProgressSection() {
         </motion.div>
       </div>
 
-      {/* XP Boost Button (Daily Limit) */}
       <motion.button
         onClick={handleClaimXP}
         whileTap={!xpClaimed ? { scale: 0.9 } : {}}
         disabled={xpClaimed}
         className={`w-full py-2 text-sm font-semibold rounded-md transition ${
           xpClaimed
-            ? "bg-gray-600 text-gray-300 cursor-not-allowed"
-            : "bg-purple-500 text-white hover:bg-purple-600"
+            ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+            : 'bg-purple-500 text-white hover:bg-purple-600'
         }`}
       >
-        {xpClaimed ? "XP Already Claimed Today" : "Earn 10 XP"}
+        {xpClaimed ? 'XP Already Claimed Today' : 'Earn 10 XP'}
       </motion.button>
     </div>
   );

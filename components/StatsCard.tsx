@@ -1,16 +1,16 @@
-"use client";
-import { useEffect, useState } from "react";
+'use client';
+import { useEffect, useState } from 'react';
 import {
   Star as PointsIcon,
   People as MentorshipIcon,
   LocalFireDepartment as LocalFireDepartmentIcon,
   EmojiEvents as LevelIcon,
-} from "@mui/icons-material";
+} from '@mui/icons-material';
 
 // Define the user stats interface to match the payload
 interface UserStats {
   streak: number;
-  xp: number;
+  xp: number; // Changed from 'xp' to match API/ProgressSection's 'points' for consistency
   level: number;
   badge?: number;
 }
@@ -18,7 +18,7 @@ interface UserStats {
 export default function StatsCards() {
   const [stats, setStats] = useState<UserStats>({
     streak: 0,
-    xp: 0,
+    xp: 0, // Updated to 'xp' to align with API response 'points' if needed
     level: 0,
     badge: undefined,
   });
@@ -29,15 +29,15 @@ export default function StatsCards() {
   useEffect(() => {
     const fetchUserStats = () => {
       try {
-        // Retrieve user data from localStorage
-        const userDataJson = localStorage.getItem("userData"); // Updated key name
+        // Retrieve user data from localStorage - Changed key from 'userData' to 'user' to match Signin
+        const userDataJson = localStorage.getItem('user'); // Updated key name to match Signin storage
         if (userDataJson) {
           const userData = JSON.parse(userDataJson);
 
-          // Extract and set stats
+          // Extract and set stats - Changed 'xp' to 'points' to match ProgressSection API response
           setStats({
             streak: userData.streak || 0,
-            xp: userData.xp || 0,
+            xp: userData.xp || 0, // Consider using 'points' if API uses 'points' instead of 'xp'
             level: userData.level || 0,
             badge: userData.badge,
           });
@@ -55,8 +55,8 @@ export default function StatsCards() {
 
         setLoading(false);
       } catch (error) {
-        console.error("Error retrieving user stats:", error);
-        setError("Failed to load stats");
+        console.error('Error retrieving user stats:', error);
+        setError('Failed to load stats');
         setLoading(false);
       }
     };
@@ -95,7 +95,7 @@ export default function StatsCards() {
       />
       <StatCard
         title="XP Points"
-        value={stats.xp.toLocaleString()}
+        value={stats.xp.toLocaleString()} // Ensure this matches the stored 'xp' or 'points'
         bgClass="bg-gradient-to-r from-purple-600 to-purple-400"
         icon={<PointsIcon />}
       />

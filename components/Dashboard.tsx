@@ -1,17 +1,39 @@
-"use client";
+'use client';
 
-import Sidebar from "./Sidebar";
-import ActivityFeed from "./ActivityFeed";
-import StatsCards from "./StatsCard";
-import Calendar from "./Calendar";
-import ProgressSection from "./ProgressSection";
-import InternshipsSection from "./InternshipSection";
-import GamificationOverlay from "./GamificationOverlay";
-import Image from "next/image";
-import { useState } from "react";
+import Sidebar from './Sidebar';
+import ActivityFeed from './ActivityFeed';
+import StatsCards from './StatsCard';
+import Calendar from './Calendar';
+import ProgressSection from './ProgressSection';
+import InternshipsSection from './InternshipSection';
+import GamificationOverlay from './GamificationOverlay';
+import { useState, useEffect } from 'react';
+
+// Define the User interface to match the stored data structure
+interface User {
+  pk: number;
+  email: string;
+  full_name: string;
+  streak: number;
+  xp: number;
+  level: number;
+  badge?: number;
+  user_type: string;
+  [key: string]: any;
+}
 
 export default function Dashboard() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState<User | null>(null); // State to hold user data
+
+  // Fetch user data from localStorage on component mount
+  useEffect(() => {
+    const userDataJson = localStorage.getItem('user');
+    if (userDataJson) {
+      const parsedUserData = JSON.parse(userDataJson);
+      setUser(parsedUserData);
+    }
+  }, []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -40,19 +62,12 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Circular image next to John Doe */}
-            <div className="flex items-center gap-3">
-              <Image
-                src="/Jane-doe.png"
-                alt="profile"
-                height={80}
-                width={80}
-                className="rounded-full border-2 border-purple-500 transition-transform hover:scale-105"
-              />
-              <div>
-                <div className="text-sm font-medium">John Doe</div>
-                <p className="text-xs text-gray-400">Student</p>
+            {/* Removed the Image component and its wrapper */}
+            <div>
+              <div className="text-sm font-medium">
+                {user?.full_name || 'Guest'} {/* Dynamic username from user data */}
               </div>
+              <p className="text-xs text-gray-400">{user?.user_type || 'User'}</p>
             </div>
           </div>
         </header>
