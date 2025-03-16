@@ -41,70 +41,82 @@ export default function Signup() {
       !user.full_name ||
       !user.email ||
       !user.password ||
-      !user.date_of_birth ||
       !user.user_type ||
       !user.location
     ) {
-      setError("All fields are required except profile picture");
+      setError(
+        "All fields are required except profile picture and date of birth"
+      );
       setIsLoading(false);
       return;
     }
 
+    // Store user data in localStorage for persistence
+    localStorage.setItem(
+      "pending_registration",
+      JSON.stringify({
+        email: user.email,
+        full_name: user.full_name,
+        user_type: user.user_type,
+        submission_time: new Date().toISOString(),
+      })
+    );
+
+    // Log the form data for debugging
+    console.log("Registration data:", {
+      full_name: user.full_name,
+      email: user.email,
+      password: "***", // Don't log actual password
+      date_of_birth: user.date_of_birth,
+      user_type: user.user_type,
+      location: user.location,
+      profile_picture: user.profile_picture ? user.profile_picture.name : null,
+    });
+
+    // Create FormData for API submission
+    const formData = new FormData();
+    formData.append("full_name", user.full_name);
+    formData.append("email", user.email);
+    formData.append("password1", user.password);
+    formData.append("password2", user.password);
+    formData.append("date_of_birth", user.date_of_birth || "");
+    formData.append("user_type", user.user_type);
+    formData.append("location", user.location);
+
+    if (user.profile_picture) {
+      formData.append("profile_picture", user.profile_picture);
+    }
+
+    // Start API request but don't wait for it to complete before redirecting
     try {
-      // Create FormData to handle file upload
-      const formData = new FormData();
-      formData.append("full_name", user.full_name);
-      formData.append("email", user.email);
-      formData.append("password1", user.password);
-      formData.append("password2", user.password);
-      formData.append("date_of_birth", user.date_of_birth);
-      formData.append("user_type", user.user_type);
-      formData.append("location", user.location);
+      // Fire and forget - initiate request but don't wait
+      axios
+        .post(
+          "https://readytoconnect.panemtech.com/api/accounts/registration/",
+          formData,
+          {
+            withCredentials: true,
+            timeout: 15000, // 15 second timeout
+          }
+        )
+        .then((response) => {
+          console.log("Registration successful:", response.data);
+          localStorage.removeItem("pending_registration"); // Clear the pending data on success
+        })
+        .catch((error) => {
+          console.error("Registration error (background):", error);
+          // Keep the pending registration data in localStorage for retry possibility
+        });
 
-      if (user.profile_picture) {
-        formData.append("profile_picture", user.profile_picture);
-      }
-
-      const response = await axios.post(
-        "https://readytoconnect.panemtech.com/api/accounts/registration/",
-        formData,
-        {
-          withCredentials: true,
-          // Don't set Content-Type header when using FormData
-        }
-      );
-
-      // Successful registration - redirect to signin
-      setTimeout(() => {
-        router.push("/signin");
-      }, 100);
+      // Immediately redirect without waiting for API response
+      console.log("Redirecting to skills assessment...");
+      router.push("/skills-assessment");
     } catch (error) {
-      // Type guard for AxiosError
-      const err = error as AxiosError<any>;
-
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        if (typeof err.response.data === "object") {
-          const errorMessages = Object.entries(err.response.data)
-            .map(
-              ([key, value]) =>
-                `${key}: ${Array.isArray(value) ? value.join(", ") : value}`
-            )
-            .join("\n");
-          setError(errorMessages);
-        } else {
-          setError("Registration failed. Please try again.");
-        }
-      } else if (err.request) {
-        // The request was made but no response was received
-        setError("No response from server. Please try again later.");
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError("Connection error. Please try again later.");
-      }
-      console.error("Registration error:", err);
-    } finally {
+      // This catch will mainly handle pre-request errors since we're not awaiting the axios call
+      console.error("Pre-request error:", error);
+      setError(
+        "An error occurred while preparing your registration. Please try again."
+      );
       setIsLoading(false);
     }
   };
@@ -124,6 +136,12 @@ export default function Signup() {
     const file = e.target.files?.[0] || null;
 
     if (file) {
+      // Check file size before proceeding (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setError("Profile picture must be less than 2MB");
+        return;
+      }
+
       // Update state with the selected file
       setUser((prevUser) => ({
         ...prevUser,
@@ -280,12 +298,11 @@ export default function Signup() {
           {/* Date of Birth */}
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-300">
-              Date of Birth
+              Date of Birth <span className="text-gray-500">(Optional)</span>
             </label>
             <div className="relative">
               <input
                 type="date"
-                required
                 className="w-full pl-10 pr-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all"
                 value={user.date_of_birth}
                 onChange={handleInputChange("date_of_birth")}
@@ -390,7 +407,7 @@ export default function Signup() {
           {/* Profile Picture */}
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-300">
-              Profile Picture
+              Profile Picture <span className="text-gray-500">(Optional)</span>
             </label>
             <div
               className="w-full border border-[#3a3a45] rounded-lg p-4 text-center cursor-pointer hover:border-purple-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all bg-[#2a2a35]"

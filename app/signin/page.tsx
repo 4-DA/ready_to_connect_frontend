@@ -1,5 +1,5 @@
 "use client";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios, { AxiosError } from "axios";
 
@@ -17,11 +17,55 @@ interface User {
   [key: string]: any; // Allow for additional properties
 }
 
+// API URL constant to ensure consistency
+const API_BASE_URL = "https://readytoconnect.panemtech.com/api";
+
 export default function Signin() {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
+
+  // Check for existing session on component mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      // Verify token validity before auto-login
+      verifyToken(token);
+    }
+  }, []);
+
+  // Function to verify token validity
+  const verifyToken = async (token: string) => {
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/accounts/verify-token/`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 200) {
+        // Token is valid, redirect to home
+        router.push("/");
+      } else {
+        // If verification endpoint doesn't exist or returns non-200
+        // Clear potentially invalid tokens
+        localStorage.removeItem("token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+      }
+    } catch (error) {
+      // Token verification failed, clear storage
+      localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+      console.log("Token verification failed, removed old tokens");
+    }
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,23 +73,26 @@ export default function Signin() {
     setIsLoading(true);
 
     try {
-      // Updated API endpoint (without trailing slash to ensure consistency)
-      const response = await axios.post(
-        "https://readytoconnect.panemtech.com/api/accounts/login/",
-        credentials,
-        {
-          headers: { "Content-Type": "application/json" },
-          withCredentials: true,
-        }
-      );
+      // First ensure there are no lingering previous auth data
+      localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
 
-      // Access the data directly from response.data
+      // Make login request with retry logic
+      const response = await loginWithRetry(credentials, 2);
+
+      // Process successful login
       const data = response.data;
 
       // Store tokens
       if (data.access) {
         localStorage.setItem("token", data.access);
         localStorage.setItem("refresh_token", data.refresh);
+
+        // Store token creation time for potential expiry handling
+        localStorage.setItem("token_created_at", Date.now().toString());
+      } else {
+        throw new Error("No access token received");
       }
 
       // Store full user data
@@ -54,47 +101,129 @@ export default function Signin() {
         const userToStore: User = {
           pk: data.user.pk,
           email: data.user.email,
-          full_name: data.user.full_name,
-          streak: data.user.streak,
-          xp: data.user.xp,
-          level: data.user.level,
+          full_name: data.user.full_name || "",
+          streak: data.user.streak || 0,
+          xp: data.user.xp || 0,
+          level: data.user.level || 0,
           badge: data.user.badge,
           profile_picture: data.user.profile_picture,
-          user_type: data.user.user_type,
+          user_type: data.user.user_type || "user",
         };
 
         localStorage.setItem("user", JSON.stringify(userToStore));
-
-        // Log for debugging
-        console.log("Stored user data:", userToStore);
+        console.log("Login successful, stored user data");
+      } else {
+        throw new Error("No user data received");
       }
 
-      // Add a small delay before navigation to ensure data is stored
-      setTimeout(() => {
-        router.push("/");
-      }, 100);
+      // Ensure localStorage operations are complete before navigation
+      await ensureLocalStorageUpdated("token", data.access);
+
+      // Navigate to home page
+      router.push("/");
     } catch (error) {
-      // Type guard for AxiosError
-      const err = error as AxiosError<{ detail?: string }>;
+      // Enhanced error handling with more specific messages
+      const err = error as AxiosError<{
+        detail?: string;
+        non_field_errors?: string[];
+      }>;
 
       if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(
-          err.response.data?.detail ||
-            "Login failed. Please check your credentials."
-        );
+        // Handle specific API error responses
+        if (err.response.status === 401) {
+          setError("Invalid email or password. Please try again.");
+        } else if (err.response.status === 429) {
+          setError("Too many login attempts. Please try again later.");
+        } else if (err.response.data?.detail) {
+          setError(err.response.data.detail);
+        } else if (err.response.data?.non_field_errors?.length) {
+          setError(err.response.data.non_field_errors[0]);
+        } else {
+          setError(`Login failed (${err.response.status}). Please try again.`);
+        }
       } else if (err.request) {
-        // The request was made but no response was received
-        setError("No response from server. Please try again later.");
+        // Network or CORS issues
+        setError("Network error. Please check your connection and try again.");
+      } else if (err.message) {
+        // Other errors with messages
+        setError(`Error: ${err.message}`);
       } else {
-        // Something happened in setting up the request that triggered an Error
-        setError("Connection error. Please try again later.");
+        // Fallback error
+        setError("Unknown error occurred. Please try again.");
       }
+
       console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Login with retry functionality
+  const loginWithRetry = async (
+    credentials: { email: string; password: string },
+    maxRetries: number
+  ) => {
+    let retries = 0;
+    let lastError;
+
+    while (retries <= maxRetries) {
+      try {
+        const response = await axios.post(
+          `${API_BASE_URL}/accounts/login/`,
+          credentials,
+          {
+            headers: { "Content-Type": "application/json" },
+            withCredentials: true,
+            timeout: 10000, // 10 second timeout
+          }
+        );
+        return response;
+      } catch (error) {
+        lastError = error;
+        const err = error as AxiosError;
+
+        // Only retry on network errors or 5xx server errors
+        if (!err.response || (err.response && err.response.status >= 500)) {
+          retries++;
+          // Wait before retry (exponential backoff)
+          if (retries <= maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, 1000 * retries));
+            continue;
+          }
+        }
+        // Don't retry for client errors (4xx)
+        throw error;
+      }
+    }
+    throw lastError;
+  };
+
+  // Ensure localStorage is updated
+  const ensureLocalStorageUpdated = async (
+    key: string,
+    expectedValue: string
+  ): Promise<void> => {
+    let attempts = 0;
+    const maxAttempts = 5;
+    const checkInterval = 20; // ms
+
+    return new Promise((resolve, reject) => {
+      const checkStorage = () => {
+        const storedValue = localStorage.getItem(key);
+        if (storedValue === expectedValue) {
+          resolve();
+        } else if (attempts >= maxAttempts) {
+          // After max attempts, proceed anyway but log the issue
+          console.warn(`LocalStorage update for ${key} could not be verified`);
+          resolve();
+        } else {
+          attempts++;
+          setTimeout(checkStorage, checkInterval);
+        }
+      };
+
+      checkStorage();
+    });
   };
 
   return (
@@ -146,7 +275,10 @@ export default function Signin() {
                 className="w-full pl-10 pr-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all"
                 value={credentials.email}
                 onChange={(e) =>
-                  setCredentials({ ...credentials, email: e.target.value })
+                  setCredentials({
+                    ...credentials,
+                    email: e.target.value.trim(),
+                  })
                 }
               />
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
@@ -202,6 +334,8 @@ export default function Signin() {
                 name="remember-me"
                 type="checkbox"
                 className="h-4 w-4 bg-[#2a2a35] border-[#3a3a45] rounded text-purple-500 focus:ring-purple-500"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
               />
               <label
                 htmlFor="remember-me"
