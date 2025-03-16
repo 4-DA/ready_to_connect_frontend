@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Star as StarIcon,
   CheckCircle as CheckIcon,
-  EmojiEvents as EmojiEventsIcon,
+  EmojiEvents as AwardIcon,
   LocalFireDepartment as FireIcon,
   Lock as LockIcon,
 } from "@mui/icons-material";
 import Image from "next/image";
 import Sidebar from "./Sidebar";
+import Confetti from "react-confetti"; // npm install react-confetti
+// import useSound from "use-sound"; // npm install use-sound for sound effects
+// import correctSound from "./sounds/correct.mp3"; // Add your sound files
+// import incorrectSound from "./sounds/incorrect.mp3";
+// import levelUpSound from "./sounds/levelup.mp3";
 
 // Define the type for a single skill
 interface Skill {
@@ -20,11 +25,28 @@ interface Skill {
   completed: boolean;
   difficulty: "Beginner" | "Intermediate" | "Advanced";
   locked: boolean;
+  questions: {
+    question: string;
+    options: string[];
+    correctAnswer: string;
+  }[];
 }
 
 export default function SkillAssessments() {
   const [userXP, setUserXP] = useState(750);
   const [streak, setStreak] = useState(5);
+  const [currentSkillIndex, setCurrentSkillIndex] = useState<number | null>(
+    null
+  );
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [lives, setLives] = useState(3);
+  // const [playCorrect] = useSound(correctSound);
+  // const [playIncorrect] = useSound(incorrectSound);
+  // const [playLevelUp] = useSound(levelUpSound);
+
   const [skills, setSkills] = useState<Skill[]>([
     {
       name: "Coding Fundamentals",
@@ -34,6 +56,23 @@ export default function SkillAssessments() {
       completed: false,
       difficulty: "Beginner",
       locked: false,
+      questions: [
+        {
+          question: "What is a variable in programming?",
+          options: [
+            "A fixed value",
+            "A storage location",
+            "A function",
+            "A loop",
+          ],
+          correctAnswer: "A storage location",
+        },
+        {
+          question: "What does a loop do?",
+          options: ["Stops code", "Repeats code", "Deletes code", "Hides code"],
+          correctAnswer: "Repeats code",
+        },
+      ],
     },
     {
       name: "Problem Solving",
@@ -43,6 +82,23 @@ export default function SkillAssessments() {
       completed: false,
       difficulty: "Intermediate",
       locked: false,
+      questions: [
+        {
+          question: "What’s the first step in problem-solving?",
+          options: [
+            "Write code",
+            "Test the solution",
+            "Understand the problem",
+            "Debug",
+          ],
+          correctAnswer: "Understand the problem",
+        },
+        {
+          question: "How do you fix a bug?",
+          options: ["Ignore it", "Debug it", "Restart", "Delete it"],
+          correctAnswer: "Debug it",
+        },
+      ],
     },
     {
       name: "Advanced Algorithms",
@@ -52,6 +108,18 @@ export default function SkillAssessments() {
       completed: false,
       difficulty: "Advanced",
       locked: true,
+      questions: [
+        {
+          question: "What is Big-O notation used for?",
+          options: [
+            "Memory allocation",
+            "Time complexity",
+            "Syntax checking",
+            "Data storage",
+          ],
+          correctAnswer: "Time complexity",
+        },
+      ],
     },
     {
       name: "Communication Skills",
@@ -61,177 +129,360 @@ export default function SkillAssessments() {
       completed: false,
       difficulty: "Intermediate",
       locked: false,
+      questions: [
+        {
+          question: "What’s key to effective communication?",
+          options: [
+            "Speaking loudly",
+            "Active listening",
+            "Ignoring feedback",
+            "Using jargon",
+          ],
+          correctAnswer: "Active listening",
+        },
+        {
+          question: "What helps in team discussions?",
+          options: ["Shouting", "Listening", "Ignoring", "Leaving"],
+          correctAnswer: "Listening",
+        },
+      ],
     },
   ]);
 
-  const getXPForLevel = (level: number) => {
-    return level * 100;
-  };
-
+  const getXPForLevel = (level: number) => level * 100;
   const getCurrentLevel = () => {
     let level = 1;
-    while (userXP >= getXPForLevel(level)) {
-      level++;
-    }
+    while (userXP >= getXPForLevel(level)) level++;
     return level - 1;
   };
 
   const handleStartAssessment = (index: number) => {
     if (skills[index].locked) return;
-
-    const updatedSkills = [...skills];
-    const skill = updatedSkills[index];
-
-    // Increase progress
-    skill.progress = Math.min(skill.progress + 20, 100);
-
-    // Level up logic
-    if (skill.progress === 100 && skill.level < skill.maxLevel) {
-      skill.level += 1;
-      skill.progress = 0;
-
-      // Award XP for completing a skill level
-      setUserXP((prevXP) => prevXP + 50);
-    }
-
-    setSkills(updatedSkills);
+    setCurrentSkillIndex(index);
+    setCurrentQuestion(0);
+    setShowFeedback(false);
+    setLives(3);
   };
 
-  return (
-    <div className="flex min-h-screen bg-gradient-to-br from-[#0e0e13] to-[#1a1a22] text-white">
-      <Sidebar />
+  const handleAnswer = (selectedAnswer: string) => {
+    if (currentSkillIndex === null) return;
+    const skill = skills[currentSkillIndex];
+    const correct =
+      selectedAnswer === skill.questions[currentQuestion].correctAnswer;
 
+    setIsCorrect(correct);
+    setShowFeedback(true);
+    if (correct) playCorrect();
+    else playIncorrect();
+
+    if (!correct) setLives(lives - 1);
+
+    setTimeout(() => {
+      setShowFeedback(false);
+      if (lives > 0 && currentQuestion < skill.questions.length - 1) {
+        setCurrentQuestion(currentQuestion + 1);
+      } else {
+        const updatedSkills = [...skills];
+        const currentSkill = updatedSkills[currentSkillIndex];
+
+        if (correct || lives > 0) {
+          currentSkill.progress = Math.min(currentSkill.progress + 20, 100);
+          setUserXP((prevXP) => prevXP + 10);
+          if (
+            currentSkill.progress === 100 &&
+            currentSkill.level < currentSkill.maxLevel
+          ) {
+            currentSkill.level += 1;
+            currentSkill.progress = 0;
+            setUserXP((prevXP) => prevXP + 50);
+            currentSkill.completed =
+              currentSkill.level === currentSkill.maxLevel;
+            setShowConfetti(true);
+            playLevelUp();
+            setTimeout(() => setShowConfetti(false), 3000);
+          }
+        }
+
+        setSkills(updatedSkills);
+        setCurrentSkillIndex(null);
+      }
+    }, 1500);
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case "Beginner":
+        return "text-green-300";
+      case "Intermediate":
+        return "text-blue-300";
+      case "Advanced":
+        return "text-red-300";
+      default:
+        return "text-gray-400";
+    }
+  };
+
+  const mentorMessages = {
+    welcome: "Hey coder! Ready to level up? 🦉",
+    correct: "Great work! Keep it up! ✨",
+    incorrect: "Oops! Let’s try again! 💪",
+    levelUp: "Amazing! You’ve leveled up! 🎉",
+  };
+
+  const styles = `
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-bounce { animation: bounce 0.5s ease-in-out; }
+    .animate-pulse { animation: pulse 1s ease-in-out infinite; }
+    .animate-fade-in { animation: fade-in 0.5s ease-in-out; }
+    .animate-spin { animation: spin 1s linear infinite; }
+    .animate-pulse-once { animation: pulse 1s ease-in-out 1; }
+  `;
+
+  useEffect(() => {
+    const styleSheet = document.createElement("style");
+    styleSheet.textContent = styles;
+    document.head.appendChild(styleSheet);
+    return () => {
+      document.head.removeChild(styleSheet);
+    };
+  }, [styles]);
+
+  return (
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
+      <Sidebar />
       <div className="flex-1 p-6 pl-20">
-        {/* Header with User Info and Gamification Stats */}
-        <header className="flex justify-between items-center mb-6">
+        <header className="flex justify-between items-center mb-8 relative">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center bg-[#252530] rounded-full px-4 py-2 shadow-md">
-              <FireIcon className="mr-2 text-orange-500" />
-              <span className="font-semibold">{streak} Day Streak</span>
+            <div className="bg-gray-700 rounded-full px-4 py-2 shadow-md flex items-center animate-pulse-once">
+              <FireIcon className="mr-2 text-orange-300" />
+              <span className="font-semibold text-lg">
+                {streak} Day Streak!
+              </span>
             </div>
-            <div className="flex items-center bg-[#252530] rounded-full px-4 py-2 shadow-md">
-              <EmojiEventsIcon className="mr-2 text-yellow-500" />
-              <span className="font-semibold">Level {getCurrentLevel()}</span>
+            <div className="bg-gray-700 rounded-full px-4 py-2 shadow-md flex items-center">
+              <AwardIcon className="mr-2 text-yellow-300" />
+              <span className="font-semibold text-lg">
+                Level {getCurrentLevel()}
+              </span>
             </div>
           </div>
-
           <div className="flex items-center gap-4">
             <Image
               src="/Jane-doe.png"
               alt="profile"
-              height={80}
-              width={80}
-              className="rounded-full"
+              height={60}
+              width={60}
+              className="rounded-full border-2 border-gray-500"
             />
-            <div className="text-sm">John Doe</div>
+            <div className="text-lg font-medium">John Doe</div>
+          </div>
+          <div className="absolute top-[-40px] left-1/2 transform -translate-x-1/2 text-center">
+            <div className="bg-gray-600 rounded-lg p-3 shadow-md">
+              <span className="text-md">{mentorMessages.welcome}</span>
+            </div>
           </div>
         </header>
 
-        {/* XP Progress Bar */}
-        <div className="bg-[#252530] rounded-lg p-4 mb-6">
-          <div className="flex justify-between mb-2">
-            <span>XP: {userXP}</span>
+        <div className="bg-gray-700 rounded-lg p-4 mb-8 shadow-md">
+          <div className="flex justify-between mb-2 text-md">
+            <span>
+              XP: {userXP} <StarIcon className="text-yellow-300" />
+            </span>
             <span>Next Level: {getXPForLevel(getCurrentLevel() + 1)} XP</span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-4">
+          <div className="w-full bg-gray-600 rounded-full h-4 relative overflow-hidden">
             <div
-              className="bg-purple-600 h-4 rounded-full"
+              className="bg-indigo-600 h-4 rounded-full transition-all duration-1000 ease-out"
               style={{
                 width: `${
                   ((userXP % 100) / getXPForLevel(getCurrentLevel() + 1)) * 100
                 }%`,
               }}
-            ></div>
+            >
+              <span className="absolute right-2 text-xs text-white">
+                {Math.round(
+                  ((userXP % 100) / getXPForLevel(getCurrentLevel() + 1)) * 100
+                )}
+                %
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Skills List */}
-        <div className="space-y-4">
-          {skills.map((skill: Skill, index: number) => (
-            <div
-              key={index}
-              className={`flex items-center gap-4 p-3 rounded-md transition-colors ${
-                skill.locked
-                  ? "bg-gray-800 opacity-70 cursor-not-allowed"
-                  : "bg-[#252530] hover:bg-[#2a2a35]"
-              }`}
-            >
-              {/* Progress Circle or Lock Icon */}
-              <div className="relative w-12 h-12">
-                {skill.locked ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <LockIcon className="text-gray-500" />
-                  </div>
-                ) : (
-                  <>
-                    <svg className="w-full h-full" viewBox="0 0 36 36">
-                      <path
-                        className="text-gray-700"
-                        fill="none"
-                        strokeWidth="3"
-                        stroke="currentColor"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path
-                        className="text-purple-500"
-                        fill="none"
-                        strokeWidth="3"
-                        strokeDasharray={`${skill.progress}, 100`}
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm text-white">{skill.level}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Skill Info */}
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{skill.name}</p>
-                <p
-                  className={`text-xs ${
+        {currentSkillIndex === null ? (
+          <div className="space-y-4">
+            {skills.map((skill, index) => (
+              <div
+                key={index}
+                className={`flex items-center gap-4 p-4 rounded-lg shadow-md transition-all duration-300 ${
+                  skill.locked
+                    ? "bg-gray-600 opacity-70 cursor-not-allowed"
+                    : "bg-gray-700 hover:bg-gray-600"
+                }`}
+              >
+                <div className="relative w-12 h-12">
+                  {skill.locked ? (
+                    <LockIcon className="text-gray-400 w-full h-full" />
+                  ) : (
+                    <>
+                      <svg className="w-full h-full" viewBox="0 0 36 36">
+                        <path
+                          className="text-gray-500"
+                          fill="none"
+                          strokeWidth="3"
+                          stroke="currentColor"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          className="text-indigo-400"
+                          fill="none"
+                          strokeWidth="3"
+                          strokeDasharray={`${skill.progress}, 100`}
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
+                          {skill.level}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-medium">{skill.name}</p>
+                  <p
+                    className={`text-sm ${getDifficultyColor(
+                      skill.difficulty
+                    )}`}
+                  >
+                    {skill.locked
+                      ? "Locked"
+                      : `${skill.difficulty} | Level ${skill.level}/${skill.maxLevel}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleStartAssessment(index)}
+                  disabled={skill.locked}
+                  className={`px-4 py-2 rounded-md text-md font-medium ${
                     skill.locked
-                      ? "text-gray-500"
-                      : skill.difficulty === "Beginner"
-                      ? "text-green-400"
-                      : skill.difficulty === "Intermediate"
-                      ? "text-blue-400"
-                      : "text-red-400"
-                  }`}
+                      ? "bg-gray-500 text-gray-400 cursor-not-allowed"
+                      : skill.completed
+                      ? "bg-green-500 text-white animate-pulse"
+                      : "bg-gray-500 text-white hover:bg-indigo-500"
+                  } transition-all duration-200`}
                 >
                   {skill.locked
                     ? "Locked"
-                    : `${skill.difficulty} | Level ${skill.level} of ${skill.maxLevel}`}
-                </p>
+                    : skill.completed
+                    ? "Completed"
+                    : "Start"}
+                </button>
               </div>
-
-              {/* Action Button */}
-              <button
-                onClick={() => handleStartAssessment(index)}
-                disabled={skill.locked}
-                className={`p-2 rounded-md flex items-center gap-1 ${
-                  skill.locked
-                    ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                    : skill.progress === 100
-                    ? "bg-green-500 text-white"
-                    : "bg-purple-500 text-white hover:bg-purple-600"
-                } transition-colors`}
-              >
-                {skill.locked ? (
-                  "Locked"
-                ) : skill.progress === 100 ? (
-                  <>
-                    <CheckIcon className="w-4 h-4" /> Completed
-                  </>
-                ) : (
-                  "Practice"
+            ))}
+            <button
+              onClick={() => setStreak(streak + 1)}
+              className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-indigo-500 transition-all duration-200"
+            >
+              Claim Streak Bonus!
+            </button>
+          </div>
+        ) : (
+          <div className="bg-gray-700 rounded-lg p-6 shadow-md">
+            {showConfetti && <Confetti />}
+            <h2 className="text-2xl font-semibold mb-4">
+              {skills[currentSkillIndex].questions[currentQuestion].question}
+            </h2>
+            <div className="flex justify-between mb-4 text-sm">
+              <span>
+                Lives:{" "}
+                {Array(lives).fill(
+                  <FireIcon className="text-red-400 inline" />
                 )}
-              </button>
+              </span>
+              <span>
+                Question {currentQuestion + 1}/
+                {skills[currentSkillIndex].questions.length}
+              </span>
             </div>
-          ))}
-        </div>
+            <div className="grid gap-3">
+              {skills[currentSkillIndex].questions[currentQuestion].options.map(
+                (option, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => !showFeedback && handleAnswer(option)}
+                    disabled={showFeedback}
+                    className={`w-full p-3 border rounded-md text-md transition-all duration-200 ${
+                      showFeedback &&
+                      option ===
+                        skills[currentSkillIndex].questions[currentQuestion]
+                          .correctAnswer
+                        ? "border-green-500 bg-green-100 text-green-800 animate-bounce"
+                        : showFeedback
+                        ? "border-gray-500 opacity-50"
+                        : "border-gray-600 hover:border-indigo-500 hover:bg-gray-600"
+                    }`}
+                  >
+                    {option}
+                    {showFeedback &&
+                      option ===
+                        skills[currentSkillIndex].questions[currentQuestion]
+                          .correctAnswer && (
+                        <CheckIcon className="inline ml-2 text-green-500 animate-spin" />
+                      )}
+                  </button>
+                )
+              )}
+            </div>
+            {showFeedback && (
+              <div
+                className={`mt-4 p-4 rounded-md ${
+                  isCorrect
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                } animate-fade-in`}
+              >
+                <div className="flex items-center">
+                  {isCorrect ? (
+                    <CheckIcon className="mr-2 text-xl animate-bounce" />
+                  ) : (
+                    <FireIcon className="mr-2 text-xl animate-pulse" />
+                  )}
+                  <span className="text-md">
+                    {isCorrect
+                      ? mentorMessages.correct
+                      : mentorMessages.incorrect}
+                    {isCorrect && " +10 XP!"}
+                  </span>
+                </div>
+                {!isCorrect && (
+                  <p className="mt-2 text-sm">
+                    Correct:{" "}
+                    {
+                      skills[currentSkillIndex].questions[currentQuestion]
+                        .correctAnswer
+                    }
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
