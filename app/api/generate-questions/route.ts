@@ -3,13 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 // Comprehensive API key check
-if (!process.env.OPENAI_API_KEY) {
+if (!process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
   console.error("❌ CRITICAL: OpenAI API Key is missing!");
 }
 
 // Safer OpenAI initialization
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "",
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || "",
 });
 
 export async function POST(request: NextRequest) {
