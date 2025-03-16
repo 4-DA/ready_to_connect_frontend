@@ -110,7 +110,7 @@ export default function Signup() {
 
       // Immediately redirect without waiting for API response
       console.log("Redirecting to skills assessment...");
-      router.push("/skills-assessment");
+      router.push("/SkillAssessment");
     } catch (error) {
       // This catch will mainly handle pre-request errors since we're not awaiting the axios call
       console.error("Pre-request error:", error);
