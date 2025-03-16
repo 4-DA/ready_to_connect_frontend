@@ -15,13 +15,13 @@ export default function Signin() {
     setIsLoading(true);
 
     try {
-      // Use axios instead of fetch
+      // Updated API endpoint
       const response = await axios.post(
-        "http://159.89.44.197:8000/api/accounts/login/",
+        "https://readytoconnect.panemtech.com/api/accounts/login",
         credentials,
         {
           headers: { "Content-Type": "application/json" },
-          withCredentials: true, // This is equivalent to credentials: "include" in fetch
+          withCredentials: true,
         }
       );
 

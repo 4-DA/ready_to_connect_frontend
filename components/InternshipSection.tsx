@@ -1,97 +1,197 @@
-'use client'
-import { useState } from "react";
-import { Work as WorkIcon } from '@mui/icons-material';
-import Link from 'next/link';
-import { INTERNSHIPS } from '@/constants';
-import Image from 'next/image';
-import Sidebar from './Sidebar'; 
+"use client";
 
+import React, { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Work as WorkIcon,
+  LocationOn as LocationIcon,
+  DateRange as CalendarIcon,
+  Search as SearchIcon,
+} from "@mui/icons-material";
 
+// Type definition for Internship
+interface Internship {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  deadline: string;
+  tags?: string[];
+}
 
 export default function InternshipsSection() {
-  // Get only the first 3 internships to display in dashboard
-  const featuredInternships = INTERNSHIPS.slice(0, 10); 
-
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+  // Mock internship data (replace with actual dynamic data source)
+  const INTERNSHIPS: Internship[] = [
+    {
+      id: "1",
+      title: "Software Engineering Intern",
+      company: "TechCorp",
+      location: "San Francisco, CA",
+      deadline: "3/19/2025",
+      tags: ["Tech", "Engineering"],
+    },
+    {
+      id: "2",
+      title: "Marketing Intern",
+      company: "GrowEasy",
+      location: "New York, NY",
+      deadline: "3/24/2025",
+      tags: ["Marketing", "Business"],
+    },
+    {
+      id: "3",
+      title: "Data Analysis Intern",
+      company: "DataWorks",
+      location: "Chicago, IL",
+      deadline: "3/29/2025",
+      tags: ["Data", "Analytics"],
+    },
+    {
+      id: "4",
+      title: "UX/UI Design Intern",
+      company: "DesignHub",
+      location: "Seattle, WA",
+      deadline: "4/05/2025",
+      tags: ["Design", "UX"],
+    },
+    {
+      id: "5",
+      title: "Product Management Intern",
+      company: "ProductLab",
+      location: "Austin, TX",
+      deadline: "4/10/2025",
+      tags: ["Product", "Management"],
+    },
+  ];
+
+  // Filtered and memoized internships
+  const filteredInternships = useMemo(() => {
+    if (!searchQuery) return INTERNSHIPS;
+
+    const lowercaseQuery = searchQuery.toLowerCase();
+    return INTERNSHIPS.filter(
+      (internship) =>
+        internship.title.toLowerCase().includes(lowercaseQuery) ||
+        internship.company.toLowerCase().includes(lowercaseQuery) ||
+        internship.location.toLowerCase().includes(lowercaseQuery) ||
+        internship.tags?.some((tag) =>
+          tag.toLowerCase().includes(lowercaseQuery)
+        )
+    );
+  }, [searchQuery]);
+
+  // Internship card variants for animation
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: (index: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: index * 0.1,
+        duration: 0.5,
+      },
+    }),
   };
 
   return (
-    
-
-
-<div className="flex min-h-screen bg-gradient-to-br from-[#0e0e13] to-[#1a1a22] text-white">
-    <Sidebar />
-
-    <div className="flex-1 p-6 pl-20">
-      {/* Header with User Info and Gamification Stats */}
-      <header className="flex justify-between items-center mb-6">
-          {/* Search input field */}
-          <div className="relative w-full max-w-md">
+    <div className="bg-[#1a1a22] min-h-screen text-white p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Search Section */}
+        <div className="mb-8">
+          <div className="relative">
             <input
               type="text"
-              placeholder="Search dashboard..."
+              placeholder="Search internships..."
               value={searchQuery}
-              onChange={handleSearchChange}
-              className="w-full px-4 py-2 bg-[#1e1e23] rounded-md text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-3 pl-12 bg-[#252530] rounded-xl text-white 
+                focus:outline-none focus:ring-2 focus:ring-purple-500 
+                transition-all duration-300 text-sm"
             />
-            {searchQuery && (
-              <div className="absolute top-full mt-2 w-full bg-[#1e1e23] rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-                {/* Placeholder for search results */}
-                <p className="p-4 text-gray-400 text-sm">No results found</p>
-              </div>
+            <SearchIcon
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 
+                text-gray-400 opacity-70"
+            />
+          </div>
+        </div>
+
+        {/* Internships List */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold mb-4 flex items-center">
+            <WorkIcon className="mr-3 text-purple-400" />
+            Recommended Internships
+          </h2>
+
+          <AnimatePresence>
+            {filteredInternships.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center text-gray-400 py-8"
+              >
+                No internships found matching your search
+              </motion.div>
+            ) : (
+              filteredInternships.map((internship, index) => (
+                <motion.div
+                  key={internship.id}
+                  custom={index}
+                  initial="hidden"
+                  animate="visible"
+                  variants={cardVariants}
+                  className="bg-[#252530] rounded-xl p-5 hover:bg-[#2c2c3a] 
+                    transition-colors duration-300 group"
+                >
+                  <div className="flex items-start">
+                    <div
+                      className="bg-purple-500/20 p-3 rounded-lg mr-4 
+                      group-hover:bg-purple-500/30 transition-colors"
+                    >
+                      <WorkIcon className="text-purple-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3
+                        className="text-lg font-semibold mb-1 
+                        group-hover:text-purple-300 transition-colors"
+                      >
+                        {internship.title}
+                      </h3>
+                      <div className="text-sm text-gray-400 mb-2">
+                        {internship.company}
+                      </div>
+                      <div className="flex items-center text-xs text-gray-500 space-x-3">
+                        <div className="flex items-center">
+                          <LocationIcon className="mr-1 text-sm" />
+                          {internship.location}
+                        </div>
+                        <div className="flex items-center">
+                          <CalendarIcon className="mr-1 text-sm" />
+                          Apply by {internship.deadline}
+                        </div>
+                      </div>
+                      {internship.tags && (
+                        <div className="mt-2 flex space-x-2">
+                          {internship.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="bg-purple-500/10 text-purple-300 
+                                px-2 py-1 rounded-full text-xs"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))
             )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Circular image next to John Doe */}
-            <div className="flex items-center gap-3">
-              <Image
-                src="/Jane-doe.png"
-                alt="profile"
-                height={80}
-                width={80}
-                className="rounded-full border-2 border-purple-500 transition-transform hover:scale-105"
-              />
-              <div>
-                <div className="text-sm font-medium">John Doe</div>
-                <p className="text-xs text-gray-400">Student</p>
-              </div>
-            </div>
-          </div>
-        </header> 
-
-      <div className="bg-[#1a1a22] rounded-lg p-4 md:p-6">
-      <div className="flex items-center justify-between mb-3 md:mb-4">
-        <h2 className="text-lg md:text-xl">Recommended Internships</h2>
-       
+          </AnimatePresence>
+        </div>
       </div>
-      <div className="flex flex-col gap-3 md:gap-4">
-        {featuredInternships.map((internship) => (
-          <div key={internship.id} className="flex gap-2 md:gap-3 items-start">
-            <div className="p-1.5 md:p-2 bg-[#252530] rounded-lg text-purple-400">
-              <WorkIcon fontSize="small" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-sm md:text-base">{internship.title}</h3>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs md:text-sm">
-                <p className="text-gray-400">{internship.company}</p>
-                <div className="flex items-center text-xs text-gray-300 mt-1 sm:mt-0">
-                  <span className="mr-2">{internship.location}</span>
-                  <span className="text-red-400">Apply by {internship.deadline}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div> 
-
-
-
     </div>
-  </div>
   );
 }
