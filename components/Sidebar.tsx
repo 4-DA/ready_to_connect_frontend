@@ -1,46 +1,46 @@
-'use client'
-import { useState } from 'react';
-import Link from 'next/link';
-import { 
-  Dashboard as DashboardIcon,
-  Person as PersonIcon,
-  Work as WorkIcon,
-  School as SchoolIcon,
-  Settings as SettingsIcon,
-  ExitToApp as LogoutIcon,
-  Menu as MenuIcon,
-  ChevronLeft as ChevronLeftIcon, 
-  AutoAwesome as AutoAwesomeIcon,
-  SignalCellularAlt as SignalCellularAltIcon,
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-} from '@mui/icons-material';
+// ✅ Use direct imports for all icons
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import PersonIcon from "@mui/icons-material/Person";
+import WorkIcon from "@mui/icons-material/Work";
+import SchoolIcon from "@mui/icons-material/School";
+import SettingsIcon from "@mui/icons-material/Settings";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
 
 export default function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname(); // Get current route for active highlighting
 
-  const toggleSidebar = () => {
-    setExpanded(!expanded);
-  };
-
-  const toggleMobileSidebar = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  const toggleSidebar = () => setExpanded((prev) => !prev);
+  const toggleMobileSidebar = () => setMobileOpen((prev) => !prev);
 
   const navItems = [
-    { icon: <DashboardIcon />, label: 'Dashboard', href: '/', active: true },
-    { icon: <AutoAwesomeIcon />, label: 'Ai Mentor', href: '/AiMentor', active: false }, 
-    { icon: <SignalCellularAltIcon />, label: 'Skills Assesment', href: '/SkillAssessment', active: false },
-    { icon: <WorkIcon />, label: 'Internships', href: '#', active: false },
-    { icon: <SchoolIcon />, label: 'Courses', href: '#', active: false },
-    { icon: <SettingsIcon />, label: 'Settings', href: '#', active: false }
+    { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
+    { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/AiMentor" },
+    {
+      icon: <SignalCellularAltIcon />,
+      label: "Skills Assessment",
+      href: "/SkillAssessment",
+    },
+    { icon: <WorkIcon />, label: "Internships", href: "/internships" },
+    { icon: <SchoolIcon />, label: "Courses", href: "/courses" },
+    { icon: <SettingsIcon />, label: "Settings", href: "/settings" },
   ];
 
   return (
     <>
-      {/* Mobile Menu Toggle Button - Only visible on small screens */}
-      <button 
-        className="fixed top-4 left-4 z-50 md:hidden bg-[#252530] p-2 rounded-lg text-gray-200"
+      {/* Mobile Menu Toggle Button */}
+      <button
+        className="fixed top-4 left-4 z-50 md:hidden bg-[#252530] p-2 rounded-lg text-gray-200 hover:bg-[#1a1a22] transition"
         onClick={toggleMobileSidebar}
       >
         <MenuIcon />
@@ -48,30 +48,31 @@ export default function Sidebar() {
 
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
           onClick={toggleMobileSidebar}
         />
       )}
 
-      {/* Sidebar - Desktop (always visible) & Mobile (conditionally visible) */}
-      <div 
-        className={`
-          fixed h-full z-50 bg-[#1a1a22] transition-all duration-300 ease-in-out
-          ${expanded ? 'w-64' : 'w-16'} 
-          md:translate-x-0
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      {/* Sidebar */}
+      <div
+        className={`fixed h-full z-50 bg-[#1a1a22] shadow-xl transition-all duration-300 ease-in-out
+          ${expanded ? "w-64" : "w-16"}
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Header with logo and toggle */}
+          {/* Header */}
           <div className="flex items-center p-4 justify-between">
             <div className="flex items-center">
-              
-              {expanded && <span className="ml-3 font-semibold text-white">Ready to Connect</span>}
+              {expanded && (
+                <span className="ml-3 font-semibold text-white text-lg">
+                  Ready to Connect
+                </span>
+              )}
             </div>
-            <button 
-              onClick={toggleSidebar} 
+            <button
+              onClick={toggleSidebar}
               className="text-gray-400 hover:text-white hidden md:block"
             >
               {expanded ? <ChevronLeftIcon /> : <MenuIcon />}
@@ -81,30 +82,30 @@ export default function Sidebar() {
           {/* Navigation Links */}
           <nav className="flex flex-col gap-2 mt-8 px-3">
             {navItems.map((item, index) => (
-              <Link 
-                href={item.href} 
+              <Link
+                href={item.href}
                 key={index}
-                className={`
-                  flex items-center gap-3 p-2 rounded-lg transition-colors
-                  ${item.active 
-                    ? 'text-purple-400 bg-[#2a2a35]' 
-                    : 'text-gray-400 hover:text-purple-400 hover:bg-[#252530]'
+                className={`flex items-center gap-3 p-2 rounded-lg transition-all duration-300 transform hover:scale-105
+                  ${
+                    pathname === item.href
+                      ? "text-purple-400 bg-[#2a2a35]"
+                      : "text-gray-400 hover:text-purple-400 hover:bg-[#252530]"
                   }
                 `}
               >
-                <div>{item.icon}</div>
+                <div className="text-lg">{item.icon}</div>
                 {expanded && <span>{item.label}</span>}
               </Link>
             ))}
           </nav>
 
-          {/* Bottom Section */}
+          {/* Logout */}
           <div className="mt-auto p-3">
             <Link
               href="#"
-              className="flex items-center gap-3 p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-[#252530]"
+              className="flex items-center gap-3 p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-[#252530] transition-all"
             >
-              <LogoutIcon />
+              <ExitToAppIcon />
               {expanded && <span>Logout</span>}
             </Link>
           </div>
