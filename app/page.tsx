@@ -1,6 +1,8 @@
-"use client";
+import Dashboard from "@/components/Dashboard";
+import React from "react";
 
-import { withProtectedRoute } from "@/components/ProtectedRoute";
-import Dashboard from "@/components/Dashboard"; // Adjust the import path as needed
+const Home = () => {
+  return <Dashboard />;
+};
 
-export default withProtectedRoute(Dashboard);
+export default Home;

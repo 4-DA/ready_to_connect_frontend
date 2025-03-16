@@ -3,6 +3,20 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import axios, { AxiosError } from "axios";
 
+// Define a User interface to match the expected data structure
+interface User {
+  pk: number;
+  email: string;
+  full_name: string;
+  streak: number;
+  xp: number;
+  level: number;
+  badge?: number;
+  profile_picture?: string;
+  user_type: string;
+  [key: string]: any; // Allow for additional properties
+}
+
 export default function Signin() {
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
@@ -15,26 +29,50 @@ export default function Signin() {
     setIsLoading(true);
 
     try {
-      // Use axios instead of fetch
+      // Updated API endpoint (without trailing slash to ensure consistency)
       const response = await axios.post(
         "https://readytoconnect.panemtech.com/api/accounts/login/",
         credentials,
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           withCredentials: true,
         }
       );
+
       // Access the data directly from response.data
       const data = response.data;
 
-      // Store token if your backend returns one
-      if (data.token || data.access) {
-        localStorage.setItem("token", data.token || data.access);
+      // Store tokens
+      if (data.access) {
+        localStorage.setItem("token", data.access);
+        localStorage.setItem("refresh_token", data.refresh);
       }
 
-      router.push("/");
+      // Store full user data
+      if (data.user) {
+        // Ensure all important fields are preserved
+        const userToStore: User = {
+          pk: data.user.pk,
+          email: data.user.email,
+          full_name: data.user.full_name,
+          streak: data.user.streak,
+          xp: data.user.xp,
+          level: data.user.level,
+          badge: data.user.badge,
+          profile_picture: data.user.profile_picture,
+          user_type: data.user.user_type,
+        };
+
+        localStorage.setItem("user", JSON.stringify(userToStore));
+
+        // Log for debugging
+        console.log("Stored user data:", userToStore);
+      }
+
+      // Add a small delay before navigation to ensure data is stored
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     } catch (error) {
       // Type guard for AxiosError
       const err = error as AxiosError<{ detail?: string }>;
@@ -106,6 +144,7 @@ export default function Signin() {
                 placeholder="you@example.com"
                 required
                 className="w-full pl-10 pr-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all"
+                value={credentials.email}
                 onChange={(e) =>
                   setCredentials({ ...credentials, email: e.target.value })
                 }
@@ -134,6 +173,7 @@ export default function Signin() {
                 placeholder="Enter your password"
                 required
                 className="w-full pl-10 pr-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all"
+                value={credentials.password}
                 onChange={(e) =>
                   setCredentials({ ...credentials, password: e.target.value })
                 }
@@ -181,6 +221,7 @@ export default function Signin() {
           </div>
 
           <button
+            type="submit"
             className="w-full py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium rounded-lg hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#1a1a22] transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center"
             disabled={isLoading}
           >
