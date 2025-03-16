@@ -1,10 +1,8 @@
-import SkillAssessments from '@/components/SkillAssesment'
-import React from 'react'
+import SkillAssessments from "@/components/SkillAssesment";
+import React from "react";
 
 const page = () => {
-  return (
-    <SkillAssessments/>
-  )
-}
+  return <SkillAssessments />;
+};
 
-export default page
+export default page;

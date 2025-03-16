@@ -1,11 +1,8 @@
-import AIMentor from '@/components/AiMentor'
-import React from 'react'
+import AIMentor from "@/components/AiMentor";
+import React from "react";
 
 const page = () => {
-  return ( 
-    
-   <AIMentor/>
-  )
-}
+  return <AIMentor />;
+};
 
-export default page
+export default page;

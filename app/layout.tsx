@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
-
-
 export const metadata: Metadata = {
-  title: 'Ready to Conect Dashboard',
-  description: 'Internship dashboard',
+  title: "Ready to Connect Dashboard",
+  description: "Internship dashboard",
 };
 
 export default function RootLayout({
@@ -15,8 +14,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body >
-        {children}
+      <body>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

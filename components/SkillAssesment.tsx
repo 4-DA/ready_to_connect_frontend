@@ -16,7 +16,7 @@ import {
 import Image from "next/image";
 import Sidebar from "./Sidebar";
 import Confetti from "react-confetti";
-import APIQuizComponent from "./APIQuiz";
+import DynamicQuizComponent from "./DynamicQuiz";
 
 // Define the type for a single skill
 interface Skill {
@@ -537,7 +537,7 @@ export default function SkillAssessmentsWithAPI() {
                 across the tech industry
               </p>
             </div>
-            <APIQuizComponent />
+            <DynamicQuizComponent />
           </div>
         )}
       </div>

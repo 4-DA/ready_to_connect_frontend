@@ -1,92 +1,55 @@
-// contexts/AuthContext.tsx
-import React, { createContext, useState, useContext, ReactNode } from "react";
+"use client";
 
-// Define the shape of the user object
-interface User {
-  id: string;
-  email: string;
-  // Add other user properties as needed
-}
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 // Define the shape of the authentication context
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
-  logout: () => void;
   isAuthenticated: boolean;
+  login: (token: string) => void;
+  logout: () => void;
 }
 
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType>({
-  user: null,
-  login: async () => {},
-  signup: async () => {},
-  logout: () => {},
   isAuthenticated: false,
+  login: () => {},
+  logout: () => {},
 });
 
-// Authentication Provider component
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
-  const [user, setUser] = useState<User | null>(null);
+// Authentication Provider Component
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
+
+  // Check authentication on initial load
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsAuthenticated(!!token);
+  }, []);
 
   // Login method
-  const login = async (email: string, password: string) => {
-    try {
-      // TODO: Implement actual login logic (e.g., API call)
-      const mockUser: User = {
-        id: "mock-user-id",
-        email: email,
-      };
-      setUser(mockUser);
-    } catch (error) {
-      console.error("Login failed", error);
-      throw error;
-    }
-  };
-
-  // Signup method
-  const signup = async (email: string, password: string) => {
-    try {
-      // TODO: Implement actual signup logic (e.g., API call)
-      const mockUser: User = {
-        id: "new-user-id",
-        email: email,
-      };
-      setUser(mockUser);
-    } catch (error) {
-      console.error("Signup failed", error);
-      throw error;
-    }
+  const login = (token: string) => {
+    localStorage.setItem("token", token);
+    setIsAuthenticated(true);
+    router.push("/"); // Redirect to home page after login
   };
 
   // Logout method
   const logout = () => {
-    // TODO: Implement logout logic (e.g., clear tokens)
-    setUser(null);
-  };
-
-  // Context value
-  const contextValue: AuthContextType = {
-    user,
-    login,
-    signup,
-    logout,
-    isAuthenticated: !!user,
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    router.push("/signin");
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
-};
+}
 
-// Custom hook to use the auth context
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+// Custom hook to use auth context
+export function useAuth() {
+  return useContext(AuthContext);
+}

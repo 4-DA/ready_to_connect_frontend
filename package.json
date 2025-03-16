@@ -17,6 +17,7 @@
     "framer-motion": "^12.5.0",
     "lottie-react": "^2.4.1",
     "next": "^13.5.6",
+    "openai": "^4.87.3",
     "postcss": "^8.5.3",
     "react": "^18.2.0",
     "react-confetti": "^6.4.0",
