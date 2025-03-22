@@ -1,8 +1,10 @@
-import Dashboard from "@/components/Dashboard";
-import React from "react";
+"use client";
 
-const Home = () => {
-  return <Dashboard />;
-};
+import { useRouter } from "next/navigation";
+import HomePage from "@/components/Homepage";
+// This is the entry point - the default route
+export default function Home() {
+  const router = useRouter();
 
-export default Home;
+  return <HomePage />;
+}
