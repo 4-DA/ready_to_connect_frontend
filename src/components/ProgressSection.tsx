@@ -33,8 +33,10 @@ export default function ProgressSection() {
           return;
         }
 
-        const studentsUrl = 'https://readytoconnect.panemtech.com/api/profile/students/';
+        //const studentsUrl = 'https://readytoconnect.panemtech.com/api/profile/students/';
+        const studentsUrl = 'http://127.0.0.1:8000/api/profile/students/';
 
+        
         try {
           const response = await axios.get(studentsUrl, {
             headers: {

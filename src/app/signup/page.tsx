@@ -16,7 +16,7 @@ export default function Signup() {
     try {
       // From your Django URLconf, the registration endpoint is /api/accounts/registration/
       const res = await fetch(
-        "http://159.89.44.197:8000/api/accounts/registration/",
+        "http://127.0.0.1:8000/api/accounts/registration/",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

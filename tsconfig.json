@@ -18,10 +18,21 @@
         "name": "next"
       }
     ],
+    // IMPORTANT: Adjust paths so that "@/*" points to "src/*"
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": ["src/*"],
+      "@/components/*": ["src/components/*"]
+      
+    },
+    "baseUrl": "."
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  // The "include" array ensures TypeScript checks these files
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  // Exclude node_modules or any other directories to skip
   "exclude": ["node_modules"]
 }

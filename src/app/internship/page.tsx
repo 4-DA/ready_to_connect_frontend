@@ -1,8 +1,7 @@
 'use client'
+import React, { useState, useEffect } from 'react'
 import InternshipsSection from '@/components/InternshipSection'
-import Sidebar from '@/components/Sidebar';
-import React from 'react'
-import { useState, useEffect } from 'react';
+import Sidebar from '@/components/Sidebar'
 
 
 // Define the User interface to match the stored data structure

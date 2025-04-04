@@ -27,11 +27,14 @@ export default function Signin() {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
+    //const studentsUrl = 'http://127.0.0.1:8000/api/profile/students/';
 
     try {
       // Updated API endpoint (without trailing slash to ensure consistency)
       const response = await axios.post(
-        "https://readytoconnect.panemtech.com/api/accounts/login/",
+        // "https://readytoconnect.panemtech.com/api/accounts/login/",
+        "http://127.0.0.1:8000/api/accounts/login/",
+
         credentials,
         {
           headers: { "Content-Type": "application/json" },
