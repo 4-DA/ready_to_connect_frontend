@@ -23,7 +23,7 @@ export default function Signin() {
           email: user.email,
           password: user.password,
         }),
-        credentials: "include",
+        credentials: "include", // Needed if using cookies
       });
 
       const data = await res.json();
@@ -46,11 +46,16 @@ export default function Signin() {
         return;
       }
 
-      // ✅ Save tokens if needed
-      localStorage.setItem("accessToken", data.access);
-      localStorage.setItem("refreshToken", data.refresh);
+      // ✅ Correct way: Save token in localStorage
+      if (data.access) {
+        localStorage.setItem("token", data.access); // Save it as 'token' because ProgressSection reads from 'token'
+      } else if (data.key) {
+        localStorage.setItem("token", data.key); // For dj-rest-auth sessions
+      } else {
+        console.error("No token received on login.");
+      }
 
-      router.push("/dashboard");
+      router.push("/");
     } catch (err) {
       console.error("Login error:", err);
       setError("Connection error. Please try again later.");
