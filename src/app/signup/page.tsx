@@ -1,48 +1,49 @@
 "use client";
-import { useState } from "react";
+
+import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Signup() {
-  const [user, setUser] = useState({ name: "", email: "", password: "" });
+  const [user, setUser] = useState({ email: "", password: "", user_type: "student" });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
     try {
-      // From your Django URLconf, the registration endpoint is /api/accounts/registration/
-      const res = await fetch(
-        "http://127.0.0.1:8000/api/accounts/registration/",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            // Adjust field names to match Django's expected format
-            // Django typically uses 'username' instead of 'name'
-            username: user.name,
-            email: user.email,
-            password1: user.password, // Django-allauth typically uses password1/password2
-            password2: user.password, // For confirmation
-          }),
-        }
-      );
+      const res = await fetch("http://127.0.0.1:8000/api/accounts/register/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          password1: user.password,
+          password2: user.password,
+          user_type: user.user_type, // important if your backend expects user_type
+        }),
+      });
+
+      const data = await res.json();
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        // Handle different error formats
-        if (errorData && typeof errorData === "object") {
-          // Format error messages from different fields
-          const errorMessages = Object.entries(errorData)
-            .map(
-              ([key, value]) =>
-                `${key}: ${Array.isArray(value) ? value.join(", ") : value}`
-            )
-            .join("\n");
-          setError(errorMessages);
+        console.error("Signup error response:", data);
+
+        if (data.username) {
+          setError(data.username.join(" "));
+        } else if (data.email) {
+          setError(data.email.join(" "));
+        } else if (data.password1) {
+          setError(data.password1.join(" "));
+        } else if (data.password2) {
+          setError(data.password2.join(" "));
+        } else if (data.non_field_errors) {
+          setError(data.non_field_errors.join(" "));
+        } else if (data.detail) {
+          setError(data.detail);
         } else {
           setError("Registration failed. Please try again.");
         }
@@ -50,11 +51,11 @@ export default function Signup() {
         return;
       }
 
-      // Success - redirect to signin page
       router.push("/signin");
     } catch (err) {
-      console.error("Registration error:", err);
+      console.error("Signup error:", err);
       setError("Connection error. Please try again later.");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -64,18 +65,11 @@ export default function Signup() {
       <div className="bg-[#1a1a22] p-10 rounded-lg shadow-md w-96">
         <h2 className="text-2xl font-bold mb-6 text-white">Sign Up</h2>
         {error && (
-          <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded p-3 mb-4 text-red-400 whitespace-pre-line">
+          <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded p-3 mb-4 text-red-400">
             {error}
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Name"
-            required
-            className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
-            onChange={(e) => setUser({ ...user, name: e.target.value })}
-          />
           <input
             type="email"
             placeholder="Email"
@@ -90,13 +84,30 @@ export default function Signup() {
             className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
             onChange={(e) => setUser({ ...user, password: e.target.value })}
           />
+          <select
+            className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
+            value={user.user_type}
+            onChange={(e) => setUser({ ...user, user_type: e.target.value })}
+          >
+            <option value="student">Student</option>
+            <option value="guardian">Guardian</option>
+            <option value="mentor">Mentor</option>
+            <option value="business">Business</option>
+          </select>
           <button
+            type="submit"
             className="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600 transition-colors"
             disabled={isLoading}
           >
             {isLoading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
+        <p className="mt-4 text-center text-white">
+          Already have an account?{" "}
+          <Link href="/signin" className="text-purple-500 underline">
+            Sign In
+          </Link>
+        </p>
       </div>
     </div>
   );

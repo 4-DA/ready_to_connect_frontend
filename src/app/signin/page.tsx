@@ -1,24 +1,11 @@
 "use client";
+
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import axios, { AxiosError } from "axios";
-
-// Define a User interface to match the expected data structure
-interface User {
-  pk: number;
-  email: string;
-  full_name: string;
-  streak: number;
-  xp: number;
-  level: number;
-  badge?: number;
-  profile_picture?: string;
-  user_type: string;
-  [key: string]: any; // Allow for additional properties
-}
+import Link from "next/link";
 
 export default function Signin() {
-  const [credentials, setCredentials] = useState({ email: "", password: "" });
+  const [user, setUser] = useState({ email: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -27,246 +14,89 @@ export default function Signin() {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
-    //const studentsUrl = 'http://127.0.0.1:8000/api/profile/students/';
 
     try {
-      // Updated API endpoint (without trailing slash to ensure consistency)
-      const response = await axios.post(
-        // "https://readytoconnect.panemtech.com/api/accounts/login/",
-        "http://127.0.0.1:8000/api/accounts/login/",
+      const res = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          password: user.password,
+        }),
+        credentials: "include",
+      });
 
-        credentials,
-        {
-          headers: { "Content-Type": "application/json" },
-          withCredentials: true,
+      const data = await res.json();
+
+      if (!res.ok) {
+        console.error("Login error response:", data);
+
+        if (data.detail) {
+          setError(data.detail);
+        } else if (data.non_field_errors) {
+          setError(data.non_field_errors.join(" "));
+        } else if (data.email) {
+          setError(data.email.join(" "));
+        } else if (data.password) {
+          setError(data.password.join(" "));
+        } else {
+          setError("Login failed. Please check your credentials.");
         }
-      );
-
-      // Access the data directly from response.data
-      const data = response.data;
-
-      // Store tokens
-      if (data.access) {
-        localStorage.setItem("token", data.access);
-        localStorage.setItem("refresh_token", data.refresh);
+        setIsLoading(false);
+        return;
       }
 
-      // Store full user data
-      if (data.user) {
-        // Ensure all important fields are preserved
-        const userToStore: User = {
-          pk: data.user.pk,
-          email: data.user.email,
-          full_name: data.user.full_name,
-          streak: data.user.streak,
-          xp: data.user.xp,
-          level: data.user.level,
-          badge: data.user.badge,
-          profile_picture: data.user.profile_picture,
-          user_type: data.user.user_type,
-        };
+      // ✅ Save tokens if needed
+      localStorage.setItem("accessToken", data.access);
+      localStorage.setItem("refreshToken", data.refresh);
 
-        localStorage.setItem("user", JSON.stringify(userToStore));
-
-        // Log for debugging
-        console.log("Stored user data:", userToStore);
-      }
-
-      // Add a small delay before navigation to ensure data is stored
-      setTimeout(() => {
-        router.push("/");
-      }, 100);
-    } catch (error) {
-      // Type guard for AxiosError
-      const err = error as AxiosError<{ detail?: string }>;
-
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(
-          err.response.data?.detail ||
-            "Login failed. Please check your credentials."
-        );
-      } else if (err.request) {
-        // The request was made but no response was received
-        setError("No response from server. Please try again later.");
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError("Connection error. Please try again later.");
-      }
+      router.push("/dashboard");
+    } catch (err) {
       console.error("Login error:", err);
+      setError("Connection error. Please try again later.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#0e0e13] to-[#1a1a24]">
-      <div className="w-full max-w-md px-8 py-10 mx-2 backdrop-blur-sm bg-[#1a1a22]/80 rounded-2xl shadow-xl border border-[#ffffff0f]">
-        {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="h-14 w-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white text-2xl font-bold">R</span>
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
-          <p className="text-gray-400 mt-2">
-            Sign in to your ReadyToConnect account
-          </p>
-        </div>
-
+    <div className="flex justify-center items-center min-h-screen bg-[#0e0e13]">
+      <div className="bg-[#1a1a22] p-10 rounded-lg shadow-md w-96">
+        <h2 className="text-2xl font-bold mb-6 text-white">Sign In</h2>
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 text-red-400 whitespace-pre-line text-sm">
-            <div className="flex items-start">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2 mt-0.5 text-red-500"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <div>{error}</div>
-            </div>
+          <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded p-3 mb-4 text-red-400">
+            {error}
           </div>
         )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-300">
-              Email Address
-            </label>
-            <div className="relative">
-              <input
-                type="email"
-                placeholder="you@example.com"
-                required
-                className="w-full pl-10 pr-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all"
-                value={credentials.email}
-                onChange={(e) =>
-                  setCredentials({ ...credentials, email: e.target.value })
-                }
-              />
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-300">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type="password"
-                placeholder="Enter your password"
-                required
-                className="w-full pl-10 pr-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all"
-                value={credentials.password}
-                onChange={(e) =>
-                  setCredentials({ ...credentials, password: e.target.value })
-                }
-              />
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 bg-[#2a2a35] border-[#3a3a45] rounded text-purple-500 focus:ring-purple-500"
-              />
-              <label
-                htmlFor="remember-me"
-                className="ml-2 block text-sm text-gray-400"
-              >
-                Remember me
-              </label>
-            </div>
-            <div className="text-sm">
-              <a
-                href="#"
-                className="font-medium text-purple-400 hover:text-purple-300 transition-colors"
-              >
-                Forgot password?
-              </a>
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            required
+            className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
+            onChange={(e) => setUser({ ...user, email: e.target.value })}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            required
+            className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
+            onChange={(e) => setUser({ ...user, password: e.target.value })}
+          />
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium rounded-lg hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#1a1a22] transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center"
+            className="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600 transition-colors"
             disabled={isLoading}
           >
-            {isLoading ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Signing in...
-              </>
-            ) : (
-              "Sign In"
-            )}
+            {isLoading ? "Signing In..." : "Sign In"}
           </button>
-
-          <div className="mt-6 text-center text-sm text-gray-400">
-            Don't have an account?{" "}
-            <a
-              href="/signup"
-              className="font-medium text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              Sign Up
-            </a>
-          </div>
         </form>
+        <p className="mt-4 text-center text-white">
+          Do not have an account?{" "}
+          <Link href="/signup" className="text-purple-500 underline">
+            Sign Up
+          </Link>
+        </p>
       </div>
     </div>
   );
