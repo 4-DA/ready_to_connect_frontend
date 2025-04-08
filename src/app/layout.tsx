@@ -1,5 +1,6 @@
 // src/app/layout.tsx (server)
-import "./globals.css";
+
+import "./styles/globals.css";
 import type { Metadata } from "next";
 import AuthWrapper from "@/components/AuthWrapper";
 

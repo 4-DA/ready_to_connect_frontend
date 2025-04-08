@@ -3,43 +3,41 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-// Define the shape of the authentication context
 interface AuthContextType {
   isAuthenticated: boolean;
   login: (token: string) => void;
   logout: () => void;
 }
 
-// Create the context with a default value
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   login: () => {},
   logout: () => {},
 });
 
-// Authentication Provider Component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
-  // Check authentication on initial load
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     setIsAuthenticated(!!token);
   }, []);
 
-  // Login method
   const login = (token: string) => {
-    localStorage.setItem("token", token);
-    setIsAuthenticated(true);
-    router.push("/"); // Redirect to home page after login
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", token);
+      setIsAuthenticated(true);
+      router.push("/");
+    }
   };
 
-  // Logout method
   const logout = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
-    router.push("/signin");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      setIsAuthenticated(false);
+      router.push("/signin");
+    }
   };
 
   return (
@@ -49,7 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook to use auth context
 export function useAuth() {
   return useContext(AuthContext);
 }

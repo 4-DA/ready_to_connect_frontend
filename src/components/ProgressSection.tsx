@@ -2,79 +2,42 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
-import {
-  StarBorder as StarIcon,
-  EmojiEvents as TrophyIcon,
-  LocalFireDepartment as FireIcon,
-} from '@mui/icons-material';
+import { StarBorder as StarIcon, EmojiEvents as TrophyIcon, LocalFireDepartment as FireIcon } from '@mui/icons-material';
+import api from '@/utils/api'; // ✅ Your custom Axios instance
 
 export default function ProgressSection() {
   const [progress, setProgress] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [points, setPoints] = useState(0); // Using 'points' as per API response
-  const [level, setLevel] = useState(0);
+  const [points, setPoints] = useState(0);
+  const [level, setLevel] = useState(1);
   const [xpClaimed, setXpClaimed] = useState(false);
   const [mentorshipSessions, setMentorshipSessions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user data on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('token');
 
-        if (!token) {
-          console.error('No authentication token found');
-          setError('Authentication required');
-          setLoading(false);
-          return;
-        }
+        const response = await api.get('/gamification/dashboard/');
+        const data = response.data;
 
-        //const studentsUrl = 'https://readytoconnect.panemtech.com/api/profile/students/';
-        const studentsUrl = 'http://127.0.0.1:8000/api/accounts/users/';
+        setStreak(data.current_streak || 0);
+        setPoints(data.total_xp || 0);
+        setLevel(data.current_level || 1);
+        setProgress((data.total_xp % 500) / 5); // XP progress (out of 500)
+        setMentorshipSessions(2); // 🔥 (Temporary hardcoded, unless you add mentorship_sessions in backend)
 
-        
-        try {
-          const response = await axios.get(studentsUrl, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          const studentsData = response.data;
-          let userData;
-
-          if (Array.isArray(studentsData.results)) {
-            userData = studentsData.results[0]; // Assuming the first one is the current user
-          } else if (Array.isArray(studentsData)) {
-            userData = studentsData[0];
-          } else {
-            userData = studentsData;
-          }
-
-          // Update state with fetched data - Ensure keys match API response
-          setStreak(userData.streak || 5);
-          setPoints(userData.points || 1250); // Changed from 'xp' to 'points' to match API
-          setLevel(userData.level || 3);
-          setProgress(userData.level_progress || 65); // Ensure 'level_progress' exists in API
-          setMentorshipSessions(userData.mentorship_sessions || 2);
-        } catch (apiError) {
-          console.warn('API error, using default values:', apiError);
-          setStreak(5);
-          setPoints(1250);
-          setLevel(3);
-          setProgress(65);
-          setMentorshipSessions(2);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        setError('Failed to load user data');
+      } catch (err) {
+        console.error('API error, using default values:', err);
+        setError('Failed to load user data.');
+        setStreak(5);
+        setPoints(1250);
+        setLevel(3);
+        setProgress(65);
+        setMentorshipSessions(2);
+      } finally {
         setLoading(false);
       }
     };
@@ -82,11 +45,9 @@ export default function ProgressSection() {
     fetchUserData();
   }, []);
 
-  // Check if XP was already claimed for today
   useEffect(() => {
     const lastClaimDate = localStorage.getItem('xpClaimDate');
     const today = new Date().toDateString();
-
     if (lastClaimDate === today) {
       setXpClaimed(true);
     }
@@ -144,6 +105,7 @@ export default function ProgressSection() {
 
   return (
     <div className="bg-[#1a1a22] rounded-lg p-6 space-y-4 shadow-xl">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold text-white">Progress</h2>
         <div className="flex items-center gap-2">
@@ -152,7 +114,9 @@ export default function ProgressSection() {
         </div>
       </div>
 
+      {/* Progress Cards */}
       <div className="grid grid-cols-3 gap-4">
+        {/* Level Progress Card */}
         <motion.div
           animate={{ scale: [1, 1.05, 1] }}
           transition={{ repeat: Infinity, duration: 3 }}
@@ -185,16 +149,15 @@ export default function ProgressSection() {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-sm text-purple-400">Level</span>
-              <span className="text-2xl font-bold text-purple-400">
-                {level}
-              </span>
+              <span className="text-2xl font-bold text-purple-400">{level}</span>
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2">
-            {progress}% to Next Level
+            {progress.toFixed(0)}% to Next Level
           </p>
         </motion.div>
 
+        {/* Points Card */}
         <motion.div
           whileHover={{ scale: 1.05 }}
           className="bg-[#252530] rounded-lg p-4 flex flex-col items-center justify-center shadow-lg"
@@ -204,26 +167,24 @@ export default function ProgressSection() {
           <p className="text-xs text-gray-400">Points Earned</p>
         </motion.div>
 
+        {/* Mentorship Sessions Card */}
         <motion.div
           whileHover={{ scale: 1.05 }}
           className="bg-[#252530] rounded-lg p-4 flex flex-col items-center justify-center shadow-lg"
         >
           <TrophyIcon className="text-purple-500 text-4xl mb-2" />
-          <h3 className="text-lg font-semibold text-purple-400">
-            {mentorshipSessions}
-          </h3>
+          <h3 className="text-lg font-semibold text-purple-400">{mentorshipSessions}</h3>
           <p className="text-xs text-gray-400">Mentorship Sessions</p>
         </motion.div>
       </div>
 
+      {/* Claim XP Button */}
       <motion.button
         onClick={handleClaimXP}
         whileTap={!xpClaimed ? { scale: 0.9 } : {}}
         disabled={xpClaimed}
         className={`w-full py-2 text-sm font-semibold rounded-md transition ${
-          xpClaimed
-            ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
-            : 'bg-purple-500 text-white hover:bg-purple-600'
+          xpClaimed ? 'bg-gray-600 text-gray-300 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600'
         }`}
       >
         {xpClaimed ? 'XP Already Claimed Today' : 'Earn 10 XP'}

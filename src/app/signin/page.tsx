@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import api from "@/utils/api"; // ✅ use your centralized axios instance
 
 export default function Signin() {
   const [user, setUser] = useState({ email: "", password: "" });
@@ -16,21 +17,31 @@ export default function Signin() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: user.email,
-          password: user.password,
-        }),
-        credentials: "include", // Needed if using cookies
+      const response = await api.post("/accounts/auth/login/", {
+        email: user.email,
+        password: user.password,
       });
 
-      const data = await res.json();
+      const data = response.data;
 
-      if (!res.ok) {
-        console.error("Login error response:", data);
+      // ✅ Save token properly
+      if (data.access) {
+        localStorage.setItem("token", data.access);
+      } else if (data.key) {
+        localStorage.setItem("token", data.key);
+      } else {
+        console.error("No token received during login");
+      }
 
+      // ✅ OPTIONAL: Save user info to localStorage (if you want easy access later)
+      localStorage.setItem("user", JSON.stringify(data.user || {}));
+
+      router.push("/");
+    } catch (err: any) {
+      console.error("Login error:", err);
+
+      if (err.response) {
+        const data = err.response.data;
         if (data.detail) {
           setError(data.detail);
         } else if (data.non_field_errors) {
@@ -42,23 +53,9 @@ export default function Signin() {
         } else {
           setError("Login failed. Please check your credentials.");
         }
-        setIsLoading(false);
-        return;
-      }
-
-      // ✅ Correct way: Save token in localStorage
-      if (data.access) {
-        localStorage.setItem("token", data.access); // Save it as 'token' because ProgressSection reads from 'token'
-      } else if (data.key) {
-        localStorage.setItem("token", data.key); // For dj-rest-auth sessions
       } else {
-        console.error("No token received on login.");
+        setError("Connection error. Please try again later.");
       }
-
-      router.push("/");
-    } catch (err) {
-      console.error("Login error:", err);
-      setError("Connection error. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -68,16 +65,19 @@ export default function Signin() {
     <div className="flex justify-center items-center min-h-screen bg-[#0e0e13]">
       <div className="bg-[#1a1a22] p-10 rounded-lg shadow-md w-96">
         <h2 className="text-2xl font-bold mb-6 text-white">Sign In</h2>
+
         {error && (
           <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded p-3 mb-4 text-red-400">
             {error}
           </div>
         )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
             placeholder="Email"
             required
+            value={user.email}
             className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
             onChange={(e) => setUser({ ...user, email: e.target.value })}
           />
@@ -85,6 +85,7 @@ export default function Signin() {
             type="password"
             placeholder="Password"
             required
+            value={user.password}
             className="w-full px-3 py-2 border rounded bg-[#2a2a35] text-white border-[#3a3a45]"
             onChange={(e) => setUser({ ...user, password: e.target.value })}
           />
@@ -96,6 +97,7 @@ export default function Signin() {
             {isLoading ? "Signing In..." : "Sign In"}
           </button>
         </form>
+
         <p className="mt-4 text-center text-white">
           Do not have an account?{" "}
           <Link href="/signup" className="text-purple-500 underline">

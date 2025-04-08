@@ -1,79 +1,111 @@
-'use client'
-import React, { useState, useEffect } from 'react'
-import InternshipsSection from '@/components/InternshipSection'
-import Sidebar from '@/components/Sidebar'
+'use client';
 
+import React, { useState, useEffect } from 'react';
+import InternshipCard from '@/components/InternshipCard'; // ✅ New Card Component
+import Sidebar from '@/components/Sidebar';
+import api from '@/utils/api'; // ✅ Your custom Axios instance
 
-// Define the User interface to match the stored data structure
 interface User {
-  pk: number;
+  id: number;
   email: string;
-  full_name: string;
-  streak: number;
-  xp: number;
-  level: number;
-  badge?: number;
+  full_name?: string;
   user_type: string;
   [key: string]: any;
 }
 
+interface Internship {
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  company_name: string;
+}
 
-const internship= () => { 
+export default function InternshipPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState<User | null>(null); // State to hold user data
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [internships, setInternships] = useState<Internship[]>([]);
+  const [loadingInternships, setLoadingInternships] = useState(true);
 
-  // Fetch user data from localStorage on component mount
   useEffect(() => {
-    const userDataJson = localStorage.getItem('user');
-    if (userDataJson) {
-      const parsedUserData = JSON.parse(userDataJson);
-      setUser(parsedUserData);
-    }
-  }, []);  
+    const fetchUser = async () => {
+      try {
+        const response = await api.get('/accounts/auth/user/'); // ✅ Assuming your backend has a `/auth/user/` endpoint
+        setUser(response.data);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoadingUser(false);
+      }
+    };
 
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchInternships = async () => {
+      try {
+        const response = await api.get('/opportunities/internships/', {
+          params: searchQuery ? { search: searchQuery } : {},
+        });
+        setInternships(response.data.results || response.data); // ✅ Adjust if paginated
+      } catch (error) {
+        console.error('Error fetching internships:', error);
+      } finally {
+        setLoadingInternships(false);
+      }
+    };
+
+    fetchInternships();
+  }, [searchQuery]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
 
-  return ( 
+  return (
     <div className="flex min-h-screen bg-[#0e0e13] text-white relative">
-    <Sidebar/>
-    <div className="flex-1 p-6 pl-20">
-      <header className="flex justify-between items-center mb-6">
-        {/* Search input field */}
-        <div className="relative w-full max-w-md">
-          <input
-            type="text"
-            placeholder="Search dashboard..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="w-full px-4 py-2 bg-[#1e1e23] rounded-md text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
-          />
-          {searchQuery && (
-            <div className="absolute top-full mt-2 w-full bg-[#1e1e23] rounded-md shadow-lg z-10 max-h-64 overflow-y-auto">
-              {/* Placeholder for search results */}
-              <p className="p-4 text-gray-400 text-sm">No results found</p>
-            </div>
-          )}
-        </div>
+      <Sidebar />
 
-        <div className="flex items-center gap-4">
-          {/* Removed the Image component and its wrapper */}
-          <div>
-            <div className="text-sm font-medium">
-              {user?.full_name || 'Guest'} {/* Dynamic username from user data */}
-            </div>
-            <p className="text-xs text-gray-400">{user?.user_type || 'User'}</p>
+      <div className="flex-1 p-6 pl-20">
+        <header className="flex justify-between items-center mb-6">
+          {/* Search input */}
+          <div className="relative w-full max-w-md">
+            <input
+              type="text"
+              placeholder="Search internships..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="w-full px-4 py-2 bg-[#1e1e23] rounded-md text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300"
+            />
           </div>
-        </div>
-      </header>   
-      <InternshipsSection/>
-    </div>  
 
-  </div>
-    
-  )
+          <div className="flex items-center gap-4">
+            <div>
+              <div className="text-sm font-medium">
+                {loadingUser ? 'Loading...' : user?.full_name || 'Guest'}
+              </div>
+              <p className="text-xs text-gray-400">{user?.user_type || 'User'}</p>
+            </div>
+          </div>
+        </header>
+
+        {/* Internship Results */}
+        {loadingInternships ? (
+          <div className="flex justify-center items-center mt-10">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500"></div>
+          </div>
+        ) : internships.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {internships.map((internship) => (
+              <InternshipCard key={internship.id} internship={internship} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-400 mt-10">No internships found.</p>
+        )}
+      </div>
+    </div>
+  );
 }
-
-export default internship
