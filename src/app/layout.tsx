@@ -1,8 +1,9 @@
-// src/app/layout.tsx (server)
+// src/app/layout.tsx
 
-import "./styles/globals.css";
+import "@/styles/globals.css";
 import type { Metadata } from "next";
 import AuthWrapper from "@/components/AuthWrapper";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "Ready to Connect Dashboard",
@@ -12,9 +13,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head />
       <body>
-        {/* Insert the client AuthWrapper here */}
-        <AuthWrapper>{children}</AuthWrapper>
+        <AuthWrapper>
+          {children}
+          <Toaster />  
+        </AuthWrapper>
       </body>
     </html>
   );

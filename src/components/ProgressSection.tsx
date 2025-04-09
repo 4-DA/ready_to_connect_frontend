@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import { StarBorder as StarIcon, EmojiEvents as TrophyIcon, LocalFireDepartment as FireIcon } from '@mui/icons-material';
 import api from '@/utils/api'; // ✅ Your custom Axios instance
 
@@ -16,34 +17,28 @@ export default function ProgressSection() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setLoading(true);
-
-        const response = await api.get('/gamification/dashboard/');
-        const data = response.data;
-
-        setStreak(data.current_streak || 0);
-        setPoints(data.total_xp || 0);
-        setLevel(data.current_level || 1);
-        setProgress((data.total_xp % 500) / 5); // XP progress (out of 500)
-        setMentorshipSessions(2); // 🔥 (Temporary hardcoded, unless you add mentorship_sessions in backend)
-
-      } catch (err) {
-        console.error('API error, using default values:', err);
-        setError('Failed to load user data.');
-        setStreak(5);
-        setPoints(1250);
-        setLevel(3);
-        setProgress(65);
-        setMentorshipSessions(2);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchUserData();
   }, []);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/gamification');
+      const data = response.data;
+
+      setStreak(data.current_streak || 0);
+      setPoints(data.total_xp || 0);
+      setLevel(data.current_level || 1);
+      setProgress((data.total_xp % 100) ); // 🎯 You might want 100xp per level, not 500
+      setMentorshipSessions(data.mentorship_sessions || 0); // ✅ Update if backend provides it
+
+    } catch (err) {
+      console.error('API error, using default values:', err);
+      setError('Failed to load user data.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const lastClaimDate = localStorage.getItem('xpClaimDate');
@@ -54,27 +49,27 @@ export default function ProgressSection() {
   }, []);
 
   const handleClaimXP = async () => {
-    if (!xpClaimed) {
-      try {
-        setProgress((prev) => Math.min(prev + 10, 100));
-        setPoints((prev) => prev + 10);
-        setXpClaimed(true);
-        localStorage.setItem('xpClaimDate', new Date().toDateString());
-      } catch (error) {
-        console.error('Error claiming XP:', error);
-        setError('Failed to claim XP');
+    if (xpClaimed) return;
+    try {
+      const response = await api.post('/gamification/claim-xp/'); // 🛡️ Real backend claim
+      const { xp_awarded } = response.data;
+
+      toast.success(`🎉 +${xp_awarded} XP claimed!`);
+      setXpClaimed(true);
+      localStorage.setItem('xpClaimDate', new Date().toDateString());
+
+      if (typeof (globalThis as any).refreshUserData === 'function') {
+        await (globalThis as any).refreshUserData();
       }
+
+      // Refresh local
+      await fetchUserData();
+
+    } catch (error) {
+      console.error('Error claiming XP:', error);
+      toast.error('❌ Failed to claim daily XP.');
     }
   };
-
-  useEffect(() => {
-    if (progress >= 100) {
-      setTimeout(() => {
-        setProgress(0);
-        setLevel((prev) => prev + 1);
-      }, 1000);
-    }
-  }, [progress]);
 
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
@@ -187,7 +182,7 @@ export default function ProgressSection() {
           xpClaimed ? 'bg-gray-600 text-gray-300 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600'
         }`}
       >
-        {xpClaimed ? 'XP Already Claimed Today' : 'Earn 10 XP'}
+        {xpClaimed ? 'XP Already Claimed Today' : 'Claim Daily XP'}
       </motion.button>
     </div>
   );

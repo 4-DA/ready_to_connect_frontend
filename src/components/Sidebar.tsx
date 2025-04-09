@@ -1,9 +1,9 @@
 "use client";
+
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-// ✅ Use direct imports for all icons
 import GamesIcon from "@mui/icons-material/Games";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import PersonIcon from "@mui/icons-material/Person";
@@ -15,32 +15,33 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import SignalCellularAltIcon from "@mui/icons-material/SignalCellularAlt";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import StarIcon from "@mui/icons-material/Star";
 
 export default function Sidebar() {
   const [expanded, setExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname(); // Get current route for active highlighting
-  const router = useRouter(); // Added for navigation after logout
+  const pathname = usePathname();
+  const router = useRouter();
 
   const toggleSidebar = () => setExpanded((prev) => !prev);
   const toggleMobileSidebar = () => setMobileOpen((prev) => !prev);
 
-  // Logout handler
   const handleLogout = () => {
-    localStorage.clear(); // Example: clearing local storage
-    router.push('/signin'); // Redirect to login page
+    localStorage.clear();
+    router.push("/signin");
   };
 
+  // 🎯 UPDATED NAV ITEMS
   const navItems = [
     { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
     { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/AiMentor" },
-    {
-      icon: <GamesIcon />,
-      label: "Skills Assessment",
-      href: "/SkillAssessment",
-    },
-    { icon: <WorkIcon />, label: "Internships", href: "/internship" },
-   
+    { icon: <GamesIcon />, label: "Gamification", href: "/gamification/" },
+    { icon: <SignalCellularAltIcon />, label: "Leaderboard", href: "/gamification/leaderboard" }, // 🏆
+    { icon: <StarIcon />, label: "Badges", href: "/gamification/badges" }, // 🏅
+    { icon: <SchoolIcon />, label: "Skill Assessment", href: "/skill-assessment" }, // 🧠
+    { icon: <EmojiEventsIcon />, label: "XP History", href: "/gamification/xp-logs" }, // 📜
+    { icon: <WorkIcon />, label: "Internships", href: "/internship" }, // 🚀
   ];
 
   return (
@@ -106,16 +107,15 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          {/* Logout */}
+          {/* Logout Button */}
           <div className="mt-auto p-3">
-            <Link
-              href="/signin"
+            <button
               onClick={handleLogout}
-              className="flex items-center gap-3 p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-[#252530] transition-all"
+              className="flex items-center gap-3 p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-[#252530] transition-all w-full"
             >
               <ExitToAppIcon />
               {expanded && <span>Logout</span>}
-            </Link>
+            </button>
           </div>
         </div>
       </div>

@@ -16,8 +16,7 @@ import { OpenAI } from "openai";
 // Initialize OpenAI with API key
 // IMPORTANT: For production, use environment variables instead of hardcoding
 const openai = new OpenAI({
-  apiKey:
-    "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",
+  apiKey: process.env.OPENAI_API_KEY, 
   dangerouslyAllowBrowser: true,
 });
 

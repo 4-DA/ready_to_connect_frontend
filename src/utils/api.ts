@@ -10,6 +10,7 @@ const api = axios.create({
   },
 });
 
+// Attach access token to every request
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
@@ -23,21 +24,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ⛔ AUTO REFRESH EXPIRED TOKENS ⛔
+// Auto-refresh expired tokens
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; // avoid infinite loop
+      originalRequest._retry = true; 
 
       try {
         const refresh = localStorage.getItem("refresh_token");
         if (refresh) {
           const res = await axios.post(
-            `${baseURL}/auth/token/refresh/`,
-            { refresh: refresh },
+            `${baseURL}/accounts/auth/token/refresh/`,
+            { refresh },
             { withCredentials: true }
           );
 
@@ -47,7 +48,7 @@ api.interceptors.response.use(
           api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
           originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
 
-          return api(originalRequest); // 🔥 Retry original request
+          return api(originalRequest); 
         }
       } catch (refreshError) {
         console.error("Refresh token failed", refreshError);

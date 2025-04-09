@@ -20,6 +20,7 @@ import {
   AttachMoney as FinanceIcon,
 } from "@mui/icons-material";
 import Confetti from "react-confetti";
+import { toast } from "react-hot-toast";
 
 // Interface for quiz question
 interface QuizQuestion {
@@ -169,10 +170,25 @@ export default function DynamicQuizComponent() {
 
   // Level and XP calculations
   const getXPForLevel = (level: number) => level * 100;
-  const getCurrentLevel = () => {
+
+  // Get current level based on XP
+  const getCurrentLevel = (xp: number) => {
     let level = 1;
-    while (userXP >= getXPForLevel(level)) level++;
+    while (xp >= getXPForLevel(level)) level++;
     return level - 1;
+  };
+  
+  // Award XP function
+  const awardXP = (earnedXP: number) => {
+    const previousLevel = getCurrentLevel(userXP);
+    const newXP = userXP + earnedXP;
+    const newLevel = getCurrentLevel(newXP);
+  
+    if (newLevel > previousLevel) {
+      toast.success(`🎉 Congrats! You reached Level ${newLevel}!`);
+    }
+  
+    setUserXP(newXP);
   };
 
   // Function to generate questions using GPT API
@@ -264,35 +280,34 @@ export default function DynamicQuizComponent() {
   // Handle answer selection
   const handleAnswer = (selectedIndex: number) => {
     if (questions.length === 0 || showFeedback) return;
-
+  
     const isAnswerCorrect =
       selectedIndex === questions[currentQuestion].correctAnswerIndex;
-
+  
     setIsCorrect(isAnswerCorrect);
     setShowFeedback(true);
-
+  
     if (!isAnswerCorrect) setLives(lives - 1);
-
+  
     setTimeout(() => {
       setShowFeedback(false);
       if (lives > 0 && currentQuestion < questions.length - 1) {
         setCurrentQuestion(currentQuestion + 1);
       } else {
-        // Calculate XP based on performance
-        const xpGain = isAnswerCorrect ? 15 : 5;
-        setUserXP((prevXP) => prevXP + xpGain);
-
+        const xpEarned = (isAnswerCorrect ? 15 : 5) + (lives === 3 ? 50 : 0);
+  
+        awardXP(xpEarned); // 🎯 update XP + show level up if needed
+        saveQuizProgress(xpEarned, isAnswerCorrect ? 1 : -1); // 🎯 save backend
+  
         if (lives === 3) {
-          // Perfect score
-          setUserXP((prevXP) => prevXP + 50);
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 3000);
         }
-
+  
         setCurrentCategoryId(null);
       }
     }, 2000);
-  };
+  };  
 
   // Filter categories based on search or field selection
   const filteredCategories = quizCategories.filter((category) => {
@@ -309,6 +324,51 @@ export default function DynamicQuizComponent() {
 
     return matchesSearch && matchesField;
   });
+
+  const saveQuizProgress = async (xpGained: number, streakChange: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  
+    if (!token) {
+      console.error("No auth token found.");
+      return;
+    }
+  
+    try {
+      const response = await fetch("/api/gamification/quiz-progress/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          xp: xpGained,         // 🏆 Total XP earned from quiz
+          streak: streakChange, // 🔥 Streak change (example: +1 or -1)
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to save progress: ${response.status}`);
+      }
+  
+      const result = await response.json();
+      console.log("✅ Progress saved successfully:", result);
+  
+      // 🔥 Immediately refresh user data on dashboard
+      if (typeof (globalThis as any).refreshUserData === "function") {
+        await (globalThis as any).refreshUserData();
+      }
+  
+      // 🎉 Show success toast
+      toast.success(`+${xpGained} XP earned! Streak ${streakChange >= 0 ? "increased" : "decreased"}!`);
+  
+    } catch (error) {
+      console.error("❌ Error saving quiz progress:", error);
+      // 🎯 Show error toast
+      toast.error("Failed to save your progress. Please try again.");
+    }
+  };
+  
+
 
   return (
     <div className="p-6">

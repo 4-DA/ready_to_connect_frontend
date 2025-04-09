@@ -1,8 +1,8 @@
-import SkillAssessments from "@/components/SkillAssesment";
+"use client";
+
 import React from "react";
+import SkillAssessments from "@/components/SkillAssesment";
 
-const page = () => {
+export default function SkillAssessmentPage() {
   return <SkillAssessments />;
-};
-
-export default page;
+}

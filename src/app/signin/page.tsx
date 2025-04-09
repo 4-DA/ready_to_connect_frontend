@@ -3,7 +3,7 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import api from "@/utils/api"; // ✅ use your centralized axios instance
+import api from "@/utils/api"; // ✅ centralized axios instance
 
 export default function Signin() {
   const [user, setUser] = useState({ email: "", password: "" });
@@ -24,18 +24,21 @@ export default function Signin() {
 
       const data = response.data;
 
-      // ✅ Save token properly
-      if (data.access) {
-        localStorage.setItem("token", data.access);
-      } else if (data.key) {
-        localStorage.setItem("token", data.key);
+      // ✅ Save both access_token and refresh_token correctly
+      if (data.access && data.refresh) {
+        localStorage.setItem("access_token", data.access);
+        localStorage.setItem("refresh_token", data.refresh);
       } else {
-        console.error("No token received during login");
+        console.error("No tokens received during login.");
+        throw new Error("Invalid login response from server.");
       }
 
-      // ✅ OPTIONAL: Save user info to localStorage (if you want easy access later)
-      localStorage.setItem("user", JSON.stringify(data.user || {}));
+      // ✅ OPTIONAL: Save user info
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
 
+      // ✅ Redirect to dashboard or home
       router.push("/");
     } catch (err: any) {
       console.error("Login error:", err);

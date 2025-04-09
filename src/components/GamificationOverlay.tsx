@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
 
 // Define a TypeScript interface for Challenge
 interface Challenge {
@@ -54,17 +55,68 @@ export default function GamificationOverlay() {
     },
   ];
 
-  const handleChallengeComplete = (challenge: Challenge) => {
+  const saveChallengeProgress = async (xpGained: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  
+    if (!token) {
+      console.error("No auth token found.");
+      return;
+    }
+  
+    try {
+      const response = await fetch("/api/gamification/quiz-progress/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          xp: xpGained,   // 🏆 XP earned
+          streak: 1,      // 🔥 We simulate a streak increase (+1)
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to save challenge progress: ${response.status}`);
+      }
+  
+      const result = await response.json();
+      console.log("✅ Challenge progress saved successfully:", result);
+  
+      // Optionally trigger a dashboard refresh if you have one
+      if (typeof (globalThis as any).refreshUserData === "function") {
+        await (globalThis as any).refreshUserData();
+      }
+  
+      // Show a success toast
+      try {
+        toast.success(`+${xpGained} XP saved!`);
+      } catch (err) {
+        // Handle case where toast is missing
+      }
+    } catch (error) {
+      console.error("❌ Error saving challenge progress:", error);
+      try {
+        toast.error("Failed to save challenge progress.");
+      } catch (err) {}
+    }
+  };
+  
+  const handleChallengeComplete = async (challenge: Challenge) => {
     setActiveChallenge(challenge);
+  
+    const newXpProgress = xpProgress + challenge.xpReward;
+  
+    // Award XP progress locally first
     setXpProgress((prev) => Math.min(prev + challenge.xpReward, 100));
-
+  
     // Level up logic
-    if (xpProgress + challenge.xpReward >= 100) {
+    if (newXpProgress >= 100) {
       setUserLevel((prev) => prev + 1);
       setXpProgress(0);
     }
-
-    // Simulate badge unlock
+  
+    // Simulate badge unlock (you can connect this properly later)
     if (challenge.id === 2) {
       setUnlockedBadges((prev) => [
         ...prev,
@@ -75,12 +127,16 @@ export default function GamificationOverlay() {
         },
       ]);
     }
-
-    // Clear active challenge after 3 seconds
+  
+    // Save progress to backend 🎯
+    await saveChallengeProgress(challenge.xpReward);
+  
+    // Clear active challenge popup after 3 seconds
     setTimeout(() => {
       setActiveChallenge(null);
     }, 3000);
   };
+  
 
   return (
     <>

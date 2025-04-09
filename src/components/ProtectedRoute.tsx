@@ -12,23 +12,21 @@ export function withProtectedRoute<P extends object = {}>(
 
     React.useEffect(() => {
       if (!isAuthenticated) {
-        // Redirect to login if not authenticated
-        router.replace("/login");
+        router.replace("/login"); // 👈 Redirect to login page if NOT authenticated
       }
     }, [isAuthenticated, router]);
 
-    // Render the component only if authenticated
     if (!isAuthenticated) {
-      return null;
+      return null; // 👈 Hide the page while redirecting
     }
 
     return <WrappedComponent {...props} />;
   };
 
-  // Add a display name for easier debugging
   ProtectedRoute.displayName = `WithProtectedRoute(${
     WrappedComponent.displayName || WrappedComponent.name || "Component"
   })`;
 
   return ProtectedRoute;
 }
+
