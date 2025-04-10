@@ -33,6 +33,7 @@ export const useGameStore = create<GameState>((set) => ({
     title: "Daily Coding Quiz",
     description: "Solve 5 coding problems.",
     pointsAvailable: 50,
+    points: 0
   },
   setGameData: (data) => set((state) => ({ ...state, ...data })),
 }));

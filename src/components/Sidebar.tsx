@@ -35,7 +35,7 @@ export default function Sidebar() {
   // 🎯 UPDATED NAV ITEMS
   const navItems = [
     { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
-    { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/AiMentor" },
+    { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/AIMentor" },
     { icon: <GamesIcon />, label: "Gamification", href: "/gamification/" },
     { icon: <SignalCellularAltIcon />, label: "Leaderboard", href: "/gamification/leaderboard" }, // 🏆
     { icon: <StarIcon />, label: "Badges", href: "/gamification/badges" }, // 🏅

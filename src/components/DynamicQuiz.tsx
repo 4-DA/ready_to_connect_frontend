@@ -326,7 +326,8 @@ export default function DynamicQuizComponent() {
   });
 
   const saveQuizProgress = async (xpGained: number, streakChange: number) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+
   
     if (!token) {
       console.error("No auth token found.");
@@ -334,7 +335,7 @@ export default function DynamicQuizComponent() {
     }
   
     try {
-      const response = await fetch("/api/gamification/quiz-progress/", {
+      const response = await fetch("gamification/quiz-progress/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

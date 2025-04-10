@@ -1,72 +1,88 @@
-'use client';
-import { useEffect, useState } from 'react';
-import {
-  Star as PointsIcon,
-  People as MentorshipIcon,
-  LocalFireDepartment as LocalFireDepartmentIcon,
-  EmojiEvents as LevelIcon,
-} from '@mui/icons-material';
+"use client";
 
-// Define the user stats interface to match the payload
+import React, { useEffect, useState } from "react";
+import { 
+  Star as PointsIcon,
+  LocalFireDepartment as LocalFireDepartmentIcon,
+  EmojiEvents as LevelIcon 
+} from "@mui/icons-material";
+import api from "@/utils/api";
+
+// Define TypeScript interface for our user stats.
 interface UserStats {
   streak: number;
-  xp: number; // Changed from 'xp' to match API/ProgressSection's 'points' for consistency
+  xp: number;
   level: number;
   badge?: number;
 }
 
-export default function StatsCards() {
-  const [stats, setStats] = useState<UserStats>({
-    streak: 0,
-    xp: 0, // Updated to 'xp' to align with API response 'points' if needed
-    level: 0,
-    badge: undefined,
-  });
+// Default fallback stats.
+const DEFAULT_STATS: UserStats = {
+  streak: 0,
+  xp: 0,
+  level: 0,
+};
 
-  const [loading, setLoading] = useState(true);
+// Production-ready StatsCards component.
+const StatsCards: React.FC = () => {
+  const [stats, setStats] = useState<UserStats>(DEFAULT_STATS);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUserStats = () => {
-      try {
-        // Retrieve user data from localStorage - Changed key from 'userData' to 'user' to match Signin
-        const userDataJson = localStorage.getItem('user'); // Updated key name to match Signin storage
-        if (userDataJson) {
-          const userData = JSON.parse(userDataJson);
+  // Fetch stats from API endpoint. In production, token-based authentication
+  // should be configured correctly in your Axios instance.
+  const fetchUserStats = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setError("Authentication token not found. Please login again.");
+        return;
+      }
+      const response = await api.get("/gamification/dashboard");
+      const data = response.data;
+      setStats({
+        streak: data.current_streak || 0,
+        xp: data.total_xp || 0,
+        level: data.current_level || 1,
+        badge: data.badge, // Include badge if provided by API.
+      });
+    } catch (err: any) {
+      console.error("Error fetching user stats:", err);
+      setError("Failed to load stats from the server. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          // Extract and set stats - Changed 'xp' to 'points' to match ProgressSection API response
+  // Use effect to hydrate stats from local storage first (if available)
+  // and then update with fresh data from the server.
+  useEffect(() => {
+    const rehydrateStats = () => {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
           setStats({
             streak: userData.streak || 0,
-            xp: userData.xp || 0, // Consider using 'points' if API uses 'points' instead of 'xp'
-            level: userData.level || 0,
+            xp: userData.xp || 0,
+            level: userData.level || 1,
             badge: userData.badge,
           });
-
-          setLoading(false);
-          return;
+        } catch (error) {
+          console.error("Error parsing stored user data:", error);
         }
-
-        // If no user data found, set default values
-        setStats({
-          streak: 0,
-          xp: 0,
-          level: 0,
-        });
-
-        setLoading(false);
-      } catch (error) {
-        console.error('Error retrieving user stats:', error);
-        setError('Failed to load stats');
-        setLoading(false);
       }
     };
 
+    rehydrateStats();
     fetchUserStats();
   }, []);
 
+  // Render a loading skeleton while data is being fetched.
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
@@ -77,6 +93,7 @@ export default function StatsCards() {
     );
   }
 
+  // Display an error message if fetching fails.
   if (error) {
     return (
       <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400 text-sm">
@@ -85,30 +102,53 @@ export default function StatsCards() {
     );
   }
 
+  // Create an array of card definitions based on user stats.
+  const cards = [
+    {
+      id: "streak",
+      title: "Streak",
+      value: `${stats.streak} Days`,
+      icon: (
+        <LocalFireDepartmentIcon className="text-orange-500 text-4xl mb-2" />
+      ),
+      bgClass: "bg-gradient-to-r from-blue-500 to-blue-400",
+    },
+    {
+      id: "xp",
+      title: "XP Points",
+      value: stats.xp.toLocaleString(), // Ensures number is formatted properly.
+      icon: (
+        <PointsIcon className="text-yellow-500 text-4xl mb-2" />
+      ),
+      bgClass: "bg-gradient-to-r from-purple-600 to-purple-400",
+    },
+    {
+      id: "level",
+      title: "Level",
+      value: stats.level.toString(),
+      icon: (
+        <LevelIcon className="text-green-500 text-4xl mb-2" />
+      ),
+      bgClass: "bg-gradient-to-r from-green-500 to-green-300",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <StatCard
-        title="Streak"
-        value={`${stats.streak} Days`}
-        bgClass="bg-gradient-to-r from-blue-500 to-blue-400"
-        icon={<LocalFireDepartmentIcon />}
-      />
-      <StatCard
-        title="XP Points"
-        value={stats.xp.toLocaleString()} // Ensure this matches the stored 'xp' or 'points'
-        bgClass="bg-gradient-to-r from-purple-600 to-purple-400"
-        icon={<PointsIcon />}
-      />
-      <StatCard
-        title="Level"
-        value={stats.level.toString()}
-        bgClass="bg-gradient-to-r from-green-500 to-green-300"
-        icon={<LevelIcon />}
-      />
+      {cards.map((card) => (
+        <StatCard
+          key={card.id}
+          title={card.title}
+          value={card.value}
+          bgClass={card.bgClass}
+          icon={card.icon}
+        />
+      ))}
     </div>
   );
-}
+};
 
+// Define a reusable stat card component.
 interface StatCardProps {
   title: string;
   value: string;
@@ -116,7 +156,7 @@ interface StatCardProps {
   icon: React.ReactNode;
 }
 
-function StatCard({ title, value, bgClass, icon }: StatCardProps) {
+const StatCard: React.FC<StatCardProps> = ({ title, value, bgClass, icon }) => {
   return (
     <div className={`${bgClass} rounded-lg p-6 text-white flex flex-col`}>
       <div className="flex items-center gap-2 mb-2 text-sm opacity-90">
@@ -126,4 +166,6 @@ function StatCard({ title, value, bgClass, icon }: StatCardProps) {
       <div className="text-3xl font-bold">{value}</div>
     </div>
   );
-}
+};
+
+export default StatsCards;

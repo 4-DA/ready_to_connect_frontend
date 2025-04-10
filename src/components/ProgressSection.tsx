@@ -23,7 +23,9 @@ export default function ProgressSection() {
   const fetchUserData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/gamification');
+      //const response = await api.get('/gamification');
+      const response = await api.get('/gamification/dashboard/');
+
       const data = response.data;
 
       setStreak(data.current_streak || 0);
@@ -51,29 +53,34 @@ export default function ProgressSection() {
   const handleClaimXP = async () => {
     if (xpClaimed) return;
     try {
-      const response = await api.post('/gamification/claim-xp/'); // 🛡️ Real backend claim
+      const response = await api.post('/gamification/claim-xp/');
       const { xp_awarded } = response.data;
-
+  
       toast.success(`🎉 +${xp_awarded} XP claimed!`);
       setXpClaimed(true);
       localStorage.setItem('xpClaimDate', new Date().toDateString());
-
+  
       if (typeof (globalThis as any).refreshUserData === 'function') {
         await (globalThis as any).refreshUserData();
       }
-
-      // Refresh local
+  
       await fetchUserData();
-
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error claiming XP:', error);
-      toast.error('❌ Failed to claim daily XP.');
+  
+      if (error.response?.data?.detail?.includes("already claimed")) {
+        toast.error('🛑 You already claimed today!');
+      } else {
+        toast.error('❌ Failed to claim daily XP.');
+      }
     }
   };
+  
 
   const circumference = 2 * Math.PI * 45;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
-
+  const safeProgress = isNaN(progress) ? 0 : progress;
+  const strokeDashoffset = circumference - (safeProgress / 100) * circumference;
+  
   if (loading) {
     return (
       <div className="bg-[#1a1a22] rounded-lg p-6 space-y-4 shadow-xl animate-pulse">
