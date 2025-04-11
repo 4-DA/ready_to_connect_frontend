@@ -1,23 +1,26 @@
-import React, { ComponentType, PropsWithChildren, ReactElement } from "react";
-import { useRouter } from "next/router";
-import { useAuth } from "../contexts/AuthContext";
+// src/components/withProtectedRoute.tsx
+import React, { ComponentType, ReactElement } from "react";
+import { useRouter } from "next/navigation"; // Use next/navigation for App Router
+import { useAuth } from "@/contexts/AuthContext";
 
-// More flexible type handling
 export function withProtectedRoute<P extends object = {}>(
   WrappedComponent: ComponentType<P>
 ): React.FC<P> {
   const ProtectedRoute = (props: P): ReactElement | null => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
 
     React.useEffect(() => {
-      if (!isAuthenticated) {
-        router.replace("/login"); // 👈 Redirect to login page if NOT authenticated
+      if (!isLoading && !isAuthenticated) {
+        router.replace("/signin"); // Updated to match your sign-in route
       }
-    }, [isAuthenticated, router]);
+    }, [isAuthenticated, isLoading, router]);
 
+    if (isLoading) {
+      return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+    }
     if (!isAuthenticated) {
-      return null; // 👈 Hide the page while redirecting
+      return null; // Hide content while redirecting
     }
 
     return <WrappedComponent {...props} />;
@@ -29,4 +32,3 @@ export function withProtectedRoute<P extends object = {}>(
 
   return ProtectedRoute;
 }
-

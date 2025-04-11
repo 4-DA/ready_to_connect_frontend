@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, MouseEvent } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar";
 import GamificationOverlay from "@/components/GamificationOverlay";
@@ -11,495 +11,250 @@ import {
   Mic as MicIcon,
   MicOff as MicOffIcon,
 } from "@mui/icons-material";
-import { OpenAI } from "openai";
 
-// Initialize OpenAI with API key
-// IMPORTANT: For production, use environment variables instead of hardcoding
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, 
-  dangerouslyAllowBrowser: true,
-});
+// -------------------
+// Helper fetch calls
+// -------------------
+async function postChat(messages: { role: string; content: string }[]) {
+  const res = await fetch("/api/openai/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+  if (!res.ok) throw new Error(`Chat error ${res.status}`);
+  const { text } = await res.json();
+  return text;
+}
 
-// Define TypeScript types
+async function postTTS(text: string) {
+  const res = await fetch("/api/openai/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`TTS error ${res.status}`);
+  return await res.blob();
+}
+
+async function postTranscribe(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/openai/transcribe", {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Transcribe error ${res.status}`);
+  const { text } = await res.json();
+  return text;
+}
+
+// -------------------
+// Types
+// -------------------
 interface Message {
   text: string;
   isUser: boolean;
   timestamp: string;
 }
 
+// -------------------
+// Component
+// -------------------
 export default function AIMentor() {
   const [messages, setMessages] = useState<Message[]>([
     {
       text: "Hey there! I'm RTC, your AI Pocket Career Mentor. Ready to chat about your career goals? 🚀",
       isUser: false,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
-  const [input, setInput] = useState<string>("");
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
-  const [isListening, setIsListening] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [voiceMode, setVoiceMode] = useState<boolean>(false);
+  const [input, setInput] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
 
-  // Use refs for better memory management
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const listeningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Function to get current timestamp
-  const getCurrentTime = () => {
-    return new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const getCurrentTime = () =>
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  // Cleanup function for voice recording
   const cleanupVoiceRecording = () => {
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      recorderRef.current.stop();
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    if (listeningTimeoutRef.current) {
-      clearTimeout(listeningTimeoutRef.current);
-      listeningTimeoutRef.current = null;
-    }
-
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (listeningTimeoutRef.current) clearTimeout(listeningTimeoutRef.current);
     setIsListening(false);
   };
 
-  // Handle voice mode toggle
+  // Toggle voice mode
   useEffect(() => {
-    const setupVoiceMode = async () => {
-      if (voiceMode) {
-        await startListening();
-      } else {
-        cleanupVoiceRecording();
-      }
-    };
-
-    setupVoiceMode();
-
-    // Cleanup on component unmount
-    return () => {
-      cleanupVoiceRecording();
-    };
+    if (voiceMode) startListening();
+    else cleanupVoiceRecording();
+    return cleanupVoiceRecording;
   }, [voiceMode]);
 
+  // Send a message (user‐typed or transcribed)
   const handleSendMessage = async (userInput?: string) => {
-    const finalInput = userInput || input;
+    const finalInput = userInput ?? input;
     if (!finalInput.trim()) return;
 
-    // Add user message to chat
-    const userMessage: Message = {
-      text: finalInput,
-      isUser: true,
-      timestamp: getCurrentTime(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setMessages((m) => [
+      ...m,
+      { text: finalInput, isUser: true, timestamp: getCurrentTime() },
+    ]);
 
-    // Add thinking message
     setIsProcessing(true);
-    setMessages((prev) => [
-      ...prev,
-      {
-        text: "Thinking...",
-        isUser: false,
-        timestamp: getCurrentTime(),
-      },
+    setMessages((m) => [
+      ...m,
+      { text: "Thinking...", isUser: false, timestamp: getCurrentTime() },
     ]);
 
     try {
-      // Get AI response
-      const response = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are RTC, an AI career mentor. Provide helpful, concise career advice.",
-          },
-          { role: "user", content: finalInput },
-        ],
+      const aiText = await postChat([
+        { role: "system", content: "You are RTC, an AI career mentor. Provide concise advice." },
+        { role: "user", content: finalInput },
+      ]);
+
+      setMessages((prev) => {
+        const copy = [...prev];
+        const idx = copy.findIndex((x) => x.text === "Thinking...");
+        if (idx >= 0) copy.splice(idx, 1);
+        copy.push({ text: aiText, isUser: false, timestamp: getCurrentTime() });
+        return copy;
       });
 
-      const aiText =
-        response.choices[0]?.message?.content ||
-        "I didn't quite get that. Can you rephrase?";
-
-      // Remove thinking message and add AI response
+      if (voiceMode) await speakText(aiText);
+    } catch (err) {
+      console.error(err);
       setMessages((prev) => {
-        const newMessages = [...prev];
-        // Find and remove the "Thinking..." message
-        const thinkingIndex = newMessages.findIndex(
-          (msg) => !msg.isUser && msg.text === "Thinking..."
-        );
-        if (thinkingIndex !== -1) {
-          newMessages.splice(thinkingIndex, 1);
-        }
-
-        return [
-          ...newMessages,
-          {
-            text: aiText,
-            isUser: false,
-            timestamp: getCurrentTime(),
-          },
-        ];
-      });
-
-      // Speak response if in voice mode
-      if (voiceMode) {
-        await speakText(aiText);
-      }
-    } catch (error) {
-      console.error("Error getting AI response:", error);
-
-      // Remove thinking message and add error message
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        // Find and remove the "Thinking..." message
-        const thinkingIndex = newMessages.findIndex(
-          (msg) => !msg.isUser && msg.text === "Thinking..."
-        );
-        if (thinkingIndex !== -1) {
-          newMessages.splice(thinkingIndex, 1);
-        }
-
-        return [
-          ...newMessages,
-          {
-            text: "Sorry, I encountered an error. Please try again.",
-            isUser: false,
-            timestamp: getCurrentTime(),
-          },
-        ];
+        const copy = [...prev];
+        const idx = copy.findIndex((x) => x.text === "Thinking...");
+        if (idx >= 0) copy.splice(idx, 1);
+        copy.push({ text: "Sorry, something went wrong.", isUser: false, timestamp: getCurrentTime() });
+        return copy;
       });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const speakText = async (text: string): Promise<void> => {
-    // Stop listening while speaking
+  // Speak text via TTS endpoint
+  const speakText = async (text: string) => {
     cleanupVoiceRecording();
+    setIsSpeaking(true);
+    setMessages((m) => [
+      ...m,
+      { text: "Speaking...", isUser: false, timestamp: getCurrentTime() },
+    ]);
 
     try {
-      setIsSpeaking(true);
+      const blob = await postTTS(text);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
 
-      // Add speaking indicator
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "Speaking...",
-          isUser: false,
-          timestamp: getCurrentTime(),
-        },
-      ]);
-
-      // Get audio from OpenAI
-      const audioResponse = await openai.audio.speech.create({
-        model: "tts-1",
-        input: text,
-        voice: "alloy",
-        speed: 1.0,
-      });
-
-      const audioBlob = await audioResponse.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-
-      // Remove speaking indicator
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const speakingIndex = newMessages.findIndex(
-          (msg) => !msg.isUser && msg.text === "Speaking..."
-        );
-        if (speakingIndex !== -1) {
-          newMessages.splice(speakingIndex, 1);
-        }
-        return newMessages;
-      });
-
-      // Play audio
+      setMessages((prev) => prev.filter((m) => m.text !== "Speaking..."));
       audio.play();
-
-      // When audio finishes
       audio.onended = () => {
+        URL.revokeObjectURL(url);
         setIsSpeaking(false);
-        URL.revokeObjectURL(audioUrl); // Clean up
-
-        // Restart listening if still in voice mode
-        if (voiceMode) {
-          startListening();
-        }
+        if (voiceMode) startListening();
       };
-    } catch (error) {
-      console.error("Error generating speech:", error);
+    } catch (err) {
+      console.error(err);
       setIsSpeaking(false);
-
-      // Remove speaking indicator if exists
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const speakingIndex = newMessages.findIndex(
-          (msg) => !msg.isUser && msg.text === "Speaking..."
-        );
-        if (speakingIndex !== -1) {
-          newMessages.splice(speakingIndex, 1);
-        }
-
-        return [
-          ...newMessages,
-          {
-            text: "Sorry, I couldn't generate speech. Please check your connection.",
-            isUser: false,
-            timestamp: getCurrentTime(),
-          },
-        ];
-      });
-
-      // Try to restart listening if in voice mode
-      if (voiceMode) {
-        startListening();
-      }
+      setMessages((m) => [
+        ...m.filter((x) => x.text !== "Speaking..."),
+        { text: "TTS failed.", isUser: false, timestamp: getCurrentTime() },
+      ]);
+      if (voiceMode) startListening();
     }
   };
 
+  // Record, stop after 8s, and transcribe via Whisper endpoint
   const startListening = async () => {
-    // Don't start if already listening or speaking
     if (isListening || isSpeaking || isProcessing) return;
+    cleanupVoiceRecording();
 
     try {
-      // Clean up any existing recording session
-      cleanupVoiceRecording();
-
-      // Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       audioChunksRef.current = [];
 
-      // Create new recorder
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-      });
-      recorderRef.current = mediaRecorder;
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      recorderRef.current = recorder;
 
-      // Add listening indicator
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "Listening...",
-          isUser: false,
-          timestamp: getCurrentTime(),
-        },
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        setIsListening(false);
+        setMessages((m) => m.filter((x) => x.text !== "Listening..."));
+
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        if (blob.size < 1000) {
+          if (voiceMode) startListening();
+          return;
+        }
+
+        setIsProcessing(true);
+        setMessages((m) => [
+          ...m,
+          { text: "Processing your speech...", isUser: false, timestamp: getCurrentTime() },
+        ]);
+
+        try {
+          const file = new File([blob], "rec.webm", { type: "audio/webm" });
+          const transcript = await postTranscribe(file);
+          setMessages((m) => m.filter((x) => x.text !== "Processing your speech..."));
+          await handleSendMessage(transcript);
+        } catch (e) {
+          console.error(e);
+          setMessages((m) => [
+            ...m.filter((x) => x.text !== "Processing your speech..."),
+            { text: "Speech processing failed.", isUser: false, timestamp: getCurrentTime() },
+          ]);
+        } finally {
+          setIsProcessing(false);
+          if (voiceMode) startListening();
+        }
+      };
+
+      recorder.start(1000);
+      setIsListening(true);
+      setMessages((m) => [
+        ...m,
+        { text: "Listening...", isUser: false, timestamp: getCurrentTime() },
       ]);
 
-      // Set up event handlers
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        // Process recorded audio
-        if (audioChunksRef.current.length > 0) {
-          // Remove listening indicator
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const listeningIndex = newMessages.findIndex(
-              (msg) => !msg.isUser && msg.text === "Listening..."
-            );
-            if (listeningIndex !== -1) {
-              newMessages.splice(listeningIndex, 1);
-            }
-            return newMessages;
-          });
-
-          // Add processing indicator
-          setMessages((prev) => [
-            ...prev,
-            {
-              text: "Processing your speech...",
-              isUser: false,
-              timestamp: getCurrentTime(),
-            },
-          ]);
-
-          setIsProcessing(true);
-
-          try {
-            // Create audio blob and transcribe
-            const audioBlob = new Blob(audioChunksRef.current, {
-              type: "audio/webm",
-            });
-
-            // Skip processing if blob is too small (likely no speech)
-            if (audioBlob.size < 1000) {
-              console.log("Audio too short, ignoring");
-
-              // Remove processing indicator
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const processingIndex = newMessages.findIndex(
-                  (msg) =>
-                    !msg.isUser && msg.text === "Processing your speech..."
-                );
-                if (processingIndex !== -1) {
-                  newMessages.splice(processingIndex, 1);
-                }
-                return newMessages;
-              });
-
-              // Restart listening
-              if (voiceMode && !isSpeaking) {
-                startListening();
-              }
-              return;
-            }
-
-            // Use Whisper API for transcription
-            const transcription = await openai.audio.transcriptions.create({
-              file: new File([audioBlob], "recording.webm", {
-                type: "audio/webm",
-              }),
-              model: "whisper-1",
-            });
-
-            // Remove processing indicator
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const processingIndex = newMessages.findIndex(
-                (msg) => !msg.isUser && msg.text === "Processing your speech..."
-              );
-              if (processingIndex !== -1) {
-                newMessages.splice(processingIndex, 1);
-              }
-              return newMessages;
-            });
-
-            const transcript = transcription.text.trim();
-
-            if (transcript) {
-              await handleSendMessage(transcript);
-            } else {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  text: "I didn't hear anything. Please try speaking again.",
-                  isUser: false,
-                  timestamp: getCurrentTime(),
-                },
-              ]);
-
-              // Restart listening
-              if (voiceMode && !isSpeaking) {
-                startListening();
-              }
-            }
-          } catch (error) {
-            console.error("Error processing speech:", error);
-
-            // Remove processing indicator
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const processingIndex = newMessages.findIndex(
-                (msg) => !msg.isUser && msg.text === "Processing your speech..."
-              );
-              if (processingIndex !== -1) {
-                newMessages.splice(processingIndex, 1);
-              }
-              return newMessages;
-            });
-
-            setMessages((prev) => [
-              ...prev,
-              {
-                text: "Sorry, I couldn't process your speech. Please try again.",
-                isUser: false,
-                timestamp: getCurrentTime(),
-              },
-            ]);
-
-            // Restart listening
-            if (voiceMode && !isSpeaking) {
-              startListening();
-            }
-          } finally {
-            setIsProcessing(false);
-          }
-        } else {
-          // No audio data, just restart listening
-          if (voiceMode && !isSpeaking && !isProcessing) {
-            // Remove listening indicator first
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const listeningIndex = newMessages.findIndex(
-                (msg) => !msg.isUser && msg.text === "Listening..."
-              );
-              if (listeningIndex !== -1) {
-                newMessages.splice(listeningIndex, 1);
-              }
-              return newMessages;
-            });
-            startListening();
-          }
-        }
-      };
-
-      // Start recording
-      mediaRecorder.start(1000); // Collect data in 1-second chunks
-      setIsListening(true);
-
-      // Auto-stop after 8 seconds to process what was said
       listeningTimeoutRef.current = setTimeout(() => {
-        if (recorderRef.current && recorderRef.current.state === "recording") {
-          recorderRef.current.stop();
-        }
+        if (recorder.state === "recording") recorder.stop();
       }, 8000);
-    } catch (error) {
-      console.error("Error starting microphone:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          text: "I couldn't access your microphone. Please check your browser permissions.",
-          isUser: false,
-          timestamp: getCurrentTime(),
-        },
+    } catch (err) {
+      console.error(err);
+      setMessages((m) => [
+        ...m,
+        { text: "Mic access denied.", isUser: false, timestamp: getCurrentTime() },
       ]);
       setVoiceMode(false);
     }
   };
 
+  // Toggle voice mode on/off
   const toggleVoiceMode = async () => {
     if (!voiceMode) {
       try {
-        // Test microphone access before enabling
         await navigator.mediaDevices.getUserMedia({ audio: true });
         setVoiceMode(true);
-      } catch (error) {
-        console.error("Microphone access denied:", error);
-        setMessages((prev) => [
-          ...prev,
-          {
-            text: "I need microphone access for voice mode. Please allow it in your browser settings.",
-            isUser: false,
-            timestamp: getCurrentTime(),
-          },
+      } catch {
+        setMessages((m) => [
+          ...m,
+          { text: "Allow mic to enable voice mode.", isUser: false, timestamp: getCurrentTime() },
         ]);
       }
     } else {
@@ -507,82 +262,60 @@ export default function AIMentor() {
     }
   };
 
+  // ---------
+  // Render
+  // ---------
   return (
-    <div className="flex min-h-screen bg-[#0e0e13] text-white relative">
+    <div className="flex min-h-screen bg-[#0e0e13] text-white">
       <Sidebar />
       <div className="flex-1 p-6 pl-20">
         <header className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleVoiceMode}
-              disabled={isProcessing}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition flex items-center gap-2 ${
-                voiceMode
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gray-600 hover:bg-gray-700"
-              } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              {voiceMode ? <MicIcon /> : <MicOffIcon />}
-              {voiceMode ? "Voice Mode ON 🎙️" : "Enable Voice Mode"}
-              {isListening && (
-                <span className="ml-2 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={toggleVoiceMode}
+            disabled={isProcessing}
+            className={`px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-2 ${
+              voiceMode ? "bg-green-600" : "bg-gray-600"
+            } ${isProcessing ? "opacity-50" : ""}`}
+          >
+            {voiceMode ? <MicIcon /> : <MicOffIcon />}
+            {voiceMode ? "Voice ON 🎙️" : "Enable Voice Mode"}
+            {isListening && <span className="ml-2 h-2 w-2 bg-red-500 rounded-full animate-pulse" />}
+          </button>
           <div className="flex items-center gap-4">
-            <Image
-              src="/Jane-doe.png"
-              alt="profile"
-              height={50}
-              width={50}
-              className="rounded-full"
-            />
-            <div className="text-sm">John Doe</div>
+            <Image src="/Jane-doe.png" alt="profile" width={50} height={50} className="rounded-full" />
+            <span className="text-sm">John Doe</span>
           </div>
         </header>
 
-        {/* Chat Container */}
         <div className="flex-1 flex flex-col h-[calc(100vh-200px)]">
           <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
-            {messages.map((message, index) => (
+            {messages.map((msg, i) => (
               <motion.div
-                key={index}
+                key={i}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`flex ${
-                  message.isUser ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[70%] p-3 rounded-lg shadow-md ${
-                    message.isUser
-                      ? "bg-purple-500 text-white"
-                      : "bg-[#252530] text-gray-200"
+                    msg.isUser ? "bg-purple-500 text-white" : "bg-[#252530] text-gray-200"
                   }`}
                 >
-                  <p className="text-sm">{message.text}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {message.timestamp}
-                  </p>
-
-                  {/* Listen button for AI messages that aren't status messages */}
-                  {!message.isUser &&
+                  <p className="text-sm">{msg.text}</p>
+                  <p className="text-xs text-gray-400 mt-1">{msg.timestamp}</p>
+                  {!msg.isUser &&
                     ![
                       "Thinking...",
                       "Listening...",
                       "Speaking...",
                       "Processing your speech...",
-                    ].includes(message.text) && (
+                    ].includes(msg.text) && (
                       <button
-                        onClick={() => speakText(message.text)}
+                        onClick={() => speakText(msg.text)}
                         disabled={isSpeaking || isProcessing}
-                        className={`mt-2 text-gray-400 hover:text-white flex items-center gap-1 ${
-                          isSpeaking || isProcessing
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
+                        className="mt-2 text-gray-400 hover:text-white flex items-center gap-1"
                       >
-                        <VolumeIcon className="text-white" /> Listen
+                        <VolumeIcon /> Listen
                       </button>
                     )}
                 </div>
@@ -590,51 +323,36 @@ export default function AIMentor() {
             ))}
           </div>
 
-          {/* Input Area (Hidden in voice mode) */}
           {!voiceMode && (
             <div className="mt-auto flex items-center gap-2">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && !isProcessing && handleSendMessage()
-                }
+                onKeyDown={(e) => e.key === "Enter" && !isProcessing && handleSendMessage()}
                 placeholder="Ask me about careers, internships, or skills!"
                 disabled={isProcessing}
-                className={`flex-1 px-4 py-2 bg-[#252530] rounded-md text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  isProcessing ? "opacity-50" : ""
-                }`}
+                className="flex-1 px-4 py-2 bg-[#252530] rounded-md text-white"
               />
               <button
                 onClick={() => handleSendMessage()}
                 disabled={!input.trim() || isProcessing || isSpeaking}
-                className={`p-2 rounded-md transition-colors ${
-                  !input.trim() || isProcessing || isSpeaking
-                    ? "bg-gray-500 cursor-not-allowed"
-                    : "bg-purple-500 hover:bg-purple-600"
-                }`}
+                className="p-2 bg-purple-500 rounded-md"
               >
-                <SendIcon className="text-white" />
+                <SendIcon />
               </button>
             </div>
           )}
 
-          {/* Voice Mode Indicator */}
           {voiceMode && (
-            <div className="mt-auto flex justify-center items-center gap-2 py-3 bg-[#252530] rounded-md">
-              {isListening ? (
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span>Listening... Speak now</span>
-                </div>
-              ) : isSpeaking ? (
-                <span>RTC is speaking...</span>
-              ) : isProcessing ? (
-                <span>Processing...</span>
-              ) : (
-                <span>Voice mode active. Click microphone to disable.</span>
-              )}
+            <div className="mt-auto py-3 bg-[#252530] rounded-md text-center">
+              {isListening
+                ? "Listening… speak now"
+                : isSpeaking
+                ? "Speaking…"
+                : isProcessing
+                ? "Processing…"
+                : "Voice mode active. Click mic to disable."}
             </div>
           )}
         </div>

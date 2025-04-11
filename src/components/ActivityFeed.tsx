@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Notifications as NotificationIcon,
   CheckCircle as BadgeIcon,
   CalendarToday as CalendarIcon,
 } from "@mui/icons-material";
-import api from "@/utils/api"; // ✅ use your centralized axios instance
+import api from "@/utils/api"; // Centralized Axios instance
 
-// Define the Activity type
+// Define the Activity type interface.
 interface Activity {
   id: string;
-  type: "notification" | "badge" | "calendar"; // make sure your backend returns a type field
+  type: "notification" | "badge" | "calendar"; // Ensure backend returns a type field for each notification.
   message: string;
   date: string;
 }
@@ -21,32 +21,38 @@ export default function ActivityFeed() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchActivities() {
-      try {
-        const response = await api.get("/accounts/notifications/");
-        const data = response.data;
-
-        // Assuming your backend returns an array like [{ id, type, message, date }]
-        setActivities(
-          data.results?.map((item: any) => ({
-            id: item.id.toString(),
-            type: item.type || "notification", // fallback to "notification" if no type
-            message: item.message || "New activity",
-            date: item.created_at ? new Date(item.created_at).toLocaleDateString() : "Unknown date",
-          })) || []
-        );
-      } catch (error) {
-        console.error("Error fetching activities:", error);
-      } finally {
-        setLoading(false);
-      }
+  // Fetch activities from the backend.
+  const fetchActivities = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/accounts/notifications/");
+      const data = response.data;
+      // Assuming the backend returns an object with a "results" property.
+      const fetchedActivities: Activity[] =
+        data.results?.map((item: any) => ({
+          id: item.id.toString(),
+          type: item.type || "notification", // Fallback value.
+          message: item.message || "New activity",
+          date: item.created_at
+            ? new Date(item.created_at).toLocaleDateString()
+            : "Unknown date",
+        })) || [];
+      setActivities(fetchedActivities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+    } finally {
+      setLoading(false);
     }
-
-    fetchActivities();
   }, []);
 
-  // Icon mapping for different activity types
+  // Initial fetch and poll every 15 seconds.
+  useEffect(() => {
+    fetchActivities();
+    const interval = setInterval(fetchActivities, 15000);
+    return () => clearInterval(interval);
+  }, [fetchActivities]);
+
+  // Mapping function to choose icon per activity type.
   const getActivityIcon = (type: Activity["type"]) => {
     switch (type) {
       case "badge":
@@ -58,15 +64,10 @@ export default function ActivityFeed() {
     }
   };
 
-  // Animation variants
+  // Animation variants for container and items.
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
 
   const itemVariants = {
@@ -74,11 +75,7 @@ export default function ActivityFeed() {
     visible: {
       opacity: 1,
       x: 0,
-      transition: {
-        type: "spring",
-        stiffness: 300,
-        damping: 20,
-      },
+      transition: { type: "spring", stiffness: 300, damping: 20 },
     },
   };
 

@@ -1,6 +1,12 @@
+// src/utils/api.ts
 import axios from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+// 1) Base URL: use NEXT_PUBLIC_API_URL or default to local dev
+const baseURL =
+  (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api").replace(
+    /\/$/,
+    ""
+  );
 
 const api = axios.create({
   baseURL,
@@ -10,10 +16,10 @@ const api = axios.create({
   },
 });
 
-// Attach access token to every request
+// 2) Attach access token to every request
 api.interceptors.request.use(
   (config) => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && config.headers) {
       const token = localStorage.getItem("access_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -24,40 +30,42 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Auto-refresh expired tokens
+// 3) Auto‑refresh expired tokens on 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; 
-
+    // only try once
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
       try {
-        const refresh = localStorage.getItem("refresh_token");
-        if (refresh) {
-          const res = await axios.post(
-            `${baseURL}/accounts/auth/token/refresh/`,
-            { refresh },
-            { withCredentials: true }
-          );
+        const refreshToken = localStorage.getItem("refresh_token");
+        if (!refreshToken) throw new Error("No refresh token stored");
 
-          const newAccessToken = res.data.access;
-          localStorage.setItem("access_token", newAccessToken);
+        // Hit DRF refresh endpoint via the same `api` instance
+        const { data } = await api.post("/accounts/auth/token/refresh/", {
+          refresh: refreshToken,
+        });
 
-          api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
-          originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+        const newAccessToken = data.access;
+        // Save and re‑attach
+        localStorage.setItem("access_token", newAccessToken);
+        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
-          return api(originalRequest); 
-        }
+        // Retry original request
+        return api(originalRequest);
       } catch (refreshError) {
-        console.error("Refresh token failed", refreshError);
+        console.error("Refresh token failed:", refreshError);
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
+        // Redirect to login
         window.location.href = "/login";
       }
     }
-
     return Promise.reject(error);
   }
 );

@@ -1,146 +1,143 @@
+// src/components/GamificationOverlay.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import api from "@/utils/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useGameStore } from "@/contexts/GameContext";
 
-// Define a TypeScript interface for Challenge
 interface Challenge {
   id: number;
   title: string;
   description: string;
   xpReward: number;
   icon: string;
+  completed?: boolean;
+}
+
+interface Badge {
+  id: number;
+  name: string;
+  icon: string;
 }
 
 export default function GamificationOverlay() {
-  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(
-    null
-  );
-  const [userLevel, setUserLevel] = useState(3);
-  const [xpProgress, setXpProgress] = useState(65);
-  const [unlockedBadges, setUnlockedBadges] = useState([
-    { id: 1, name: "Networking Novice", icon: "🤝" },
-    { id: 2, name: "Resume Rockstar", icon: "📄" },
-  ]);
+  const { isAuthenticated, token } = useAuth();
+  const { level, points, badges, setGameData, fetchGameData } = useGameStore();
+  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
+  const [dailyChallenges, setDailyChallenges] = useState<Challenge[]>([]);
   const [isVisible, setIsVisible] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Auto-hide overlay after 10 seconds of inactivity
+  const xpPerLevel = 100;
+  const xpProgress = Math.min(((points % xpPerLevel) / xpPerLevel) * 100, 100);
+
   useEffect(() => {
-    if (!isVisible) return;
+    const loadData = async () => {
+      if (!isAuthenticated || !token) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await fetchGameData(token);
+        const challengesResponse = await api.get("/gamification/daily-challenges/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDailyChallenges(challengesResponse.data);
+      } catch (error) {
+        console.error("Error loading gamification data:", error);
+        toast.error("Failed to load gamification data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [isAuthenticated, token, fetchGameData]);
+
+  useEffect(() => {
+    if (!isVisible || isLoading) return;
     const timer = setTimeout(() => {
       setIsVisible(false);
     }, 10000);
-
     return () => clearTimeout(timer);
-  }, [isVisible]);
+  }, [isVisible, isLoading]);
 
   const toggleVisibility = () => {
     setIsVisible((prev) => !prev);
   };
 
-  const dailyChallenges: Challenge[] = [
-    {
-      id: 1,
-      title: "Complete Profile",
-      description: "Add 3 more skills to your profile",
-      xpReward: 50,
-      icon: "✨",
-    },
-    {
-      id: 2,
-      title: "Apply to Internship",
-      description: "Submit an application today",
-      xpReward: 100,
-      icon: "🚀",
-    },
-  ];
-
   const saveChallengeProgress = async (xpGained: number) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-  
     if (!token) {
       console.error("No auth token found.");
+      toast.error("Please log in to save progress.");
       return;
     }
-  
     try {
-      const response = await fetch("gamification/quiz-progress/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          xp: xpGained,   // 🏆 XP earned
-          streak: 1,      // 🔥 We simulate a streak increase (+1)
-        }),
+      const response = await api.post(
+        "/gamification/quiz-progress/",
+        { xp: xpGained, streak: 1 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const result = response.data;
+      console.log("✅ Challenge progress saved:", result);
+      setGameData({
+        points: result.total_xp,
+        level: result.current_level,
       });
-  
-      if (!response.ok) {
-        throw new Error(`Failed to save challenge progress: ${response.status}`);
-      }
-  
-      const result = await response.json();
-      console.log("✅ Challenge progress saved successfully:", result);
-  
-      // Optionally trigger a dashboard refresh if you have one
       if (typeof (globalThis as any).refreshUserData === "function") {
         await (globalThis as any).refreshUserData();
       }
-  
-      // Show a success toast
-      try {
-        toast.success(`+${xpGained} XP saved!`);
-      } catch (err) {
-        // Handle case where toast is missing
-      }
+      toast.success(`+${xpGained} XP saved!`);
     } catch (error) {
       console.error("❌ Error saving challenge progress:", error);
-      try {
-        toast.error("Failed to save challenge progress.");
-      } catch (err) {}
+      toast.error("Failed to save challenge progress.");
     }
   };
-  
+
   const handleChallengeComplete = async (challenge: Challenge) => {
+    if (challenge.completed) {
+      toast.error("Challenge already completed!");
+      return;
+    }
     setActiveChallenge(challenge);
-  
-    const newXpProgress = xpProgress + challenge.xpReward;
-  
-    // Award XP progress locally first
-    setXpProgress((prev) => Math.min(prev + challenge.xpReward, 100));
-  
-    // Level up logic
-    if (newXpProgress >= 100) {
-      setUserLevel((prev) => prev + 1);
-      setXpProgress(0);
+    const newPoints = points + challenge.xpReward;
+    const newLevel = Math.floor(newPoints / xpPerLevel) + 1;
+    setGameData({ points: newPoints, level: newLevel });
+    if (newPoints >= newLevel * xpPerLevel) {
+      toast.success(`Level Up! You’re now Level ${newLevel}!`);
     }
-  
-    // Simulate badge unlock (you can connect this properly later)
-    if (challenge.id === 2) {
-      setUnlockedBadges((prev) => [
-        ...prev,
-        {
-          id: 3,
-          name: "Application Ace",
-          icon: "🏆",
-        },
-      ]);
+    if (challenge.id === 2 && !badges.some((b) => b.id === 3)) {
+      const newBadge = { id: 3, name: "Application Ace", icon: "🏆" };
+      setGameData({ badges: [...badges, newBadge] });
+      toast.success(`Badge Unlocked: ${newBadge.name}!`);
     }
-  
-    // Save progress to backend 🎯
     await saveChallengeProgress(challenge.xpReward);
-  
-    // Clear active challenge popup after 3 seconds
-    setTimeout(() => {
-      setActiveChallenge(null);
-    }, 3000);
+    setDailyChallenges((prev) =>
+      prev.map((c) => (c.id === challenge.id ? { ...c, completed: true } : c))
+    );
+    setTimeout(() => setActiveChallenge(null), 3000);
   };
-  
+
+  if (isLoading) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 bg-[#252530] rounded-lg p-4 shadow-xl">
+        <div className="text-white">Loading gamification data...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 bg-[#252530] rounded-lg p-4 shadow-xl">
+        <div className="text-white">Please log in to view gamification.</div>
+      </div>
+    );
+  }
 
   return (
     <>
-      {/* Floating button to show overlay when hidden */}
       {!isVisible && (
         <button
           onClick={toggleVisibility}
@@ -149,85 +146,88 @@ export default function GamificationOverlay() {
           🎮 Show Progress
         </button>
       )}
-
-      {/* Main Overlay */}
       {isVisible && (
         <div className="fixed bottom-4 right-4 z-50 bg-[#252530] rounded-lg p-4 shadow-xl transition-opacity duration-500">
-          {/* Hide Button */}
           <button
             onClick={toggleVisibility}
             className="absolute top-2 right-2 bg-gray-700 text-white text-xs px-2 py-1 rounded-md hover:bg-gray-600 transition"
           >
             ✖ Hide
           </button>
-
-          {/* XP and Level Display */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
                 <span className="mr-2">⭐</span>
-                <span>Level {userLevel}</span>
+                <span>Level {level}</span>
               </div>
-              <span>{xpProgress}% to next level</span>
+              <span>{xpProgress.toFixed(0)}% to next level</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2.5">
               <div
                 className="bg-purple-600 h-2.5 rounded-full transition-all duration-500"
                 style={{ width: `${xpProgress}%` }}
-              ></div>
+              />
             </div>
           </div>
 
-          {/* Daily Challenges */}
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <span className="mr-2">✨</span>
-              Daily Challenges
+              <span className="mr-2">✨</span> Daily Challenges
             </h3>
-            {dailyChallenges.map((challenge) => (
-              <div
-                key={challenge.id}
-                className="bg-[#1a1a22] rounded-lg p-3 mb-3 flex items-center justify-between transform transition hover:scale-105"
-              >
-                <div className="flex items-center">
-                  <span className="mr-3 text-xl">{challenge.icon}</span>
-                  <div>
-                    <h4 className="font-medium">{challenge.title}</h4>
-                    <p className="text-xs text-gray-400">
-                      {challenge.description}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleChallengeComplete(challenge)}
-                  className="bg-purple-500 text-white px-3 py-1 rounded-full text-sm hover:bg-purple-600 transition"
+            {dailyChallenges.length > 0 ? (
+              dailyChallenges.map((challenge) => (
+                <div
+                  key={challenge.id}
+                  className="bg-[#1a1a22] rounded-lg p-3 mb-3 flex items-center justify-between transform transition hover:scale-105"
                 >
-                  Complete
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center">
+                    <span className="mr-3 text-xl">{challenge.icon}</span>
+                    <div>
+                      <h4 className={`font-medium ${challenge.completed ? "text-gray-500" : "text-white"}`}>
+                        {challenge.title}
+                      </h4>
+                      <p className="text-xs text-gray-400">{challenge.description}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleChallengeComplete(challenge)}
+                    className={`px-3 py-1 rounded-full text-sm text-white transition ${
+                      challenge.completed
+                        ? "bg-gray-600 cursor-not-allowed"
+                        : "bg-purple-500 hover:bg-purple-600"
+                    }`}
+                    disabled={challenge.completed}
+                  >
+                    {challenge.completed ? "Completed" : "Complete"}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400">No challenges available today.</p>
+            )}
           </div>
 
-          {/* Badges */}
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <span className="mr-2">🏆</span>
-              Unlocked Badges
+              <span className="mr-2">🏆</span> Unlocked Badges
             </h3>
             <div className="grid grid-cols-3 gap-3">
-              {unlockedBadges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className="flex flex-col items-center p-2 bg-[#1a1a22] rounded-lg transform transition hover:scale-110"
-                >
-                  <div className="text-2xl">{badge.icon}</div>
-                  <p className="text-xs mt-1 text-center">{badge.name}</p>
-                </div>
-              ))}
+              {badges.length > 0 ? (
+                badges.map((badge) => (
+                  <div
+                    key={badge.id}
+                    className="flex flex-col items-center p-2 bg-[#1a1a22] rounded-lg transform transition hover:scale-110"
+                  >
+                    <div className="text-2xl">{badge.icon}</div>
+                    <p className="text-xs mt-1 text-center">{badge.name}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-400 col-span-3">No badges unlocked yet.</p>
+              )}
             </div>
           </div>
 
-          {/* Challenge Completion Popup */}
           {activeChallenge && (
             <div className="fixed bottom-4 left-4 bg-purple-600 text-white p-4 rounded-lg shadow-xl flex items-center animate-bounce">
               <span className="mr-3 text-xl">✨</span>

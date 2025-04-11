@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import InternshipCard from '@/components/InternshipCard'; // ✅ New Card Component
 import Sidebar from '@/components/Sidebar';
-import api from '@/utils/api'; // ✅ Your custom Axios instance
+import api from '@/utils/api'; // ✅ Your centralized Axios instance
+import { useAuth } from '@/contexts/AuthContext'; // ✅ Import Auth Context
 
 interface User {
   id: number;
@@ -23,16 +24,20 @@ interface Internship {
 
 export default function InternshipPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [internships, setInternships] = useState<Internship[]>([]);
   const [loadingInternships, setLoadingInternships] = useState(true);
 
+  const { isAuthenticated, isLoading, user } = useAuth(); // ✅ Use Auth Context
+
   useEffect(() => {
     const fetchUser = async () => {
+      if (!isAuthenticated || isLoading) return; // ✅ Guard authentication status
+
       try {
-        const response = await api.get('/accounts/auth/user/'); // ✅ Assuming your backend has a `/auth/user/` endpoint
-        setUser(response.data);
+        const response = await api.get('/accounts/auth/user/'); // ✅ Confirm user fetch
+        setUserData(response.data);
       } catch (error) {
         console.error('Error fetching user data:', error);
       } finally {
@@ -41,15 +46,17 @@ export default function InternshipPage() {
     };
 
     fetchUser();
-  }, []);
+  }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
     const fetchInternships = async () => {
+      if (!isAuthenticated || isLoading) return; // ✅ Guard internships call
+
       try {
         const response = await api.get('/opportunities/internships/', {
           params: searchQuery ? { search: searchQuery } : {},
         });
-        setInternships(response.data.results || response.data); // ✅ Adjust if paginated
+        setInternships(response.data.results || response.data); // ✅ Adjust for paginated results
       } catch (error) {
         console.error('Error fetching internships:', error);
       } finally {
@@ -58,7 +65,7 @@ export default function InternshipPage() {
     };
 
     fetchInternships();
-  }, [searchQuery]);
+  }, [searchQuery, isAuthenticated, isLoading]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -70,7 +77,7 @@ export default function InternshipPage() {
 
       <div className="flex-1 p-6 pl-20">
         <header className="flex justify-between items-center mb-6">
-          {/* Search input */}
+          {/* Search Input */}
           <div className="relative w-full max-w-md">
             <input
               type="text"
@@ -81,12 +88,15 @@ export default function InternshipPage() {
             />
           </div>
 
+          {/* User Info */}
           <div className="flex items-center gap-4">
             <div>
               <div className="text-sm font-medium">
-                {loadingUser ? 'Loading...' : user?.full_name || 'Guest'}
+                {loadingUser ? 'Loading...' : userData?.full_name || user?.full_name || 'Guest'}
               </div>
-              <p className="text-xs text-gray-400">{user?.user_type || 'User'}</p>
+              <p className="text-xs text-gray-400">
+                {loadingUser ? '' : userData?.user_type || user?.user_type || 'User'}
+              </p>
             </div>
           </div>
         </header>

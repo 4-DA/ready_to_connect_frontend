@@ -1,8 +1,7 @@
 // src/app/layout.tsx
-
 import "@/styles/globals.css";
 import type { Metadata } from "next";
-import AuthWrapper from "@/components/AuthWrapper";
+import { AuthProvider } from "@/contexts/AuthContext"; // Updated import
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
@@ -15,11 +14,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head />
       <body>
-        <AuthWrapper>
+        <AuthProvider>
           {children}
-          <Toaster />  
-        </AuthWrapper>
+          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+        </AuthProvider>
       </body>
     </html>
   );
 }
+

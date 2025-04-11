@@ -6,3 +6,4 @@ import SkillAssessments from "@/components/SkillAssesment";
 export default function SkillAssessmentPage() {
   return <SkillAssessments />;
 }
+

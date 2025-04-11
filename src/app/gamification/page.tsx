@@ -11,7 +11,7 @@ import ProgressBar from "./progress";
 import StreakCounter from "./streak";
 
 export default function GamificationDashboard() {
-  const { level, points, streak, badges, dailyChallenge, setGameData } = useGameStore();
+  const { level, points, streak, badges, dailyChallenges: dailyChallenge, setGameData } = useGameStore();
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -30,11 +30,10 @@ export default function GamificationDashboard() {
             name: badgeObj.badge.name,
             imageUrl: badgeObj.badge.icon || "",
           })),
-          dailyChallenge: data.daily_challenge || null,
+          dailyChallenges: data.daily_challenge || null,
         });
-
       } catch (error) {
-        console.error("Error fetching gamification dashboard:", error);
+        console.error("Error fetching gamification data:", error);
       } finally {
         setLoading(false);
       }
@@ -58,7 +57,7 @@ export default function GamificationDashboard() {
       <div className="flex-1 p-6">
         <button
           className="mb-6 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-800 transition"
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/")}
         >
           ⬅ Back to Main Dashboard
         </button>
@@ -82,24 +81,21 @@ export default function GamificationDashboard() {
             <ProgressBar progress={points ? (points % 500) / 5 : 0} />
           </motion.div>
 
-          {
-  dailyChallenge && (
-    <motion.div 
-      initial={{ y: 20, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      transition={{ delay: 0.3, duration: 0.5 }}
-    >
-      <DailyChallenge
-        challenge={{
-          title: dailyChallenge.title || "Daily Challenge",
-          description: dailyChallenge.description || "Complete today's mission!",
-          points_available: dailyChallenge.pointsAvailable || dailyChallenge.points || 10, // fallback
-        }}
-      />
-    </motion.div>
-  )
-}
-
+          {dailyChallenge && (
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              <DailyChallenge
+                challenge={{
+                  title: dailyChallenge.title || "Daily Challenge",
+                  description: dailyChallenge.description || "Complete today's mission!",
+                  points_available: dailyChallenge.pointsAvailable || dailyChallenge.points || 10,
+                }}
+              />
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

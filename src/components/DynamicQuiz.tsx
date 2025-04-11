@@ -289,25 +289,32 @@ export default function DynamicQuizComponent() {
   
     if (!isAnswerCorrect) setLives(lives - 1);
   
-    setTimeout(() => {
-      setShowFeedback(false);
-      if (lives > 0 && currentQuestion < questions.length - 1) {
-        setCurrentQuestion(currentQuestion + 1);
-      } else {
-        const xpEarned = (isAnswerCorrect ? 15 : 5) + (lives === 3 ? 50 : 0);
-  
-        awardXP(xpEarned); // 🎯 update XP + show level up if needed
-        saveQuizProgress(xpEarned, isAnswerCorrect ? 1 : -1); // 🎯 save backend
-  
-        if (lives === 3) {
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 3000);
-        }
-  
-        setCurrentCategoryId(null);
-      }
-    }, 2000);
-  };  
+// Inside the setTimeout callback in handleAnswer:
+setTimeout(async () => {
+  setShowFeedback(false);
+  if (lives > 0 && currentQuestion < questions.length - 1) {
+    setCurrentQuestion(currentQuestion + 1);
+  } else {
+    // Calculate XP earned based on performance (example logic)
+    const xpEarned = (isAnswerCorrect ? 15 : 5) + (lives === 3 ? 50 : 0);
+    // Award XP locally
+    awardXP(xpEarned);
+    // Save progress: backend updates XPLog, student profile, and notifications.
+    await saveQuizProgress(xpEarned, isAnswerCorrect ? 1 : -1);
+    // Optionally trigger confetti for bonus rewards (e.g., perfect round)
+    if (lives === 3) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+    }
+    // Trigger a global data refresh so the dashboard updates user stats and recent activities
+    if (typeof (globalThis as any).refreshUserData === "function") {
+      await (globalThis as any).refreshUserData();
+    }
+    // Exit the quiz mode
+    setCurrentCategoryId(null);
+  }
+}, 2000);
+  }
 
   // Filter categories based on search or field selection
   const filteredCategories = quizCategories.filter((category) => {
