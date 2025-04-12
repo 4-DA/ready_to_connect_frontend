@@ -168,6 +168,19 @@ export default function DynamicQuizComponent() {
     Engineering: ["engineering"],
   };
 
+  // In DynamicQuizComponent:
+  useEffect(() => {
+    const storedInterest = localStorage.getItem("careerInterest");
+    if (storedInterest) {
+      const matchingCategory = quizCategories.find(
+        (cat) => cat.name.toLowerCase().includes(storedInterest.toLowerCase())
+      );
+      if (matchingCategory) {
+        startQuiz(matchingCategory.id);
+      }
+    }
+  }, []);
+
   // Level and XP calculations
   const getXPForLevel = (level: number) => level * 100;
 

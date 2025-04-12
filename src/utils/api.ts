@@ -63,7 +63,8 @@ api.interceptors.response.use(
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         // Redirect to login
-        window.location.href = "/login";
+        window.location.href = "/signin";
+
       }
     }
     return Promise.reject(error);
