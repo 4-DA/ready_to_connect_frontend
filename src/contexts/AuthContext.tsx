@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+} from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"; // For secure cookie management
 import { toast } from "react-hot-toast"; // For user feedback
@@ -41,6 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const router = useRouter();
 
+  // Helper function to dispatch auth state changed event
+  const emitAuthStateChanged = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("auth-state-changed"));
+    }
+  };
+
   // Check authentication status on mount
   useEffect(() => {
     const initializeAuth = async () => {
@@ -56,6 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(response.data);
           setToken(storedToken);
           setIsAuthenticated(true);
+
+          // Emit event to notify components that auth state has changed
+          emitAuthStateChanged();
         } catch (error) {
           console.error("Token validation failed:", error);
           logout(); // Clear invalid token
@@ -68,38 +84,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Login function with email/password
-  const login = useCallback(async (email: string, password: string) => {
-    if (typeof window === "undefined") return;
+  const login = useCallback(
+    async (email: string, password: string) => {
+      if (typeof window === "undefined") return;
 
-    setIsLoading(true);
-    try {
-      const response = await api.post("/accounts/auth/login/", {
-        email,
-        password,
-      });
+      setIsLoading(true);
+      try {
+        const response = await api.post("/accounts/auth/login/", {
+          email,
+          password,
+        });
 
-      const { access_token, refresh_token, user: userData } = response.data;
+        const { access_token, refresh_token, user: userData } = response.data;
 
-      // Store tokens (use cookies for better security in production)
-      localStorage.setItem("access_token", access_token);
-      localStorage.setItem("refresh_token", refresh_token); // For token refresh
-      setToken(access_token);
-      setUser(userData);
-      setIsAuthenticated(true);
+        // Store tokens (use cookies for better security in production)
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token); // For token refresh
+        setToken(access_token);
+        setUser(userData);
+        setIsAuthenticated(true);
 
-      // Configure Axios with token
-      api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+        // Configure Axios with token
+        api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
 
-      toast.success("Logged in successfully!");
-      router.push(userData.user_type === "mentor" ? "/mentor-dashboard" : "/");
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || "Login failed. Please check your credentials.";
-      toast.error(errorMsg);
-      console.error("Login error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router]);
+        // Emit event to notify components that auth state has changed
+        emitAuthStateChanged();
+
+        toast.success("Logged in successfully!");
+        router.push(
+          userData.user_type === "mentor" ? "/mentor-dashboard" : "/"
+        );
+      } catch (error: any) {
+        const errorMsg =
+          error.response?.data?.detail ||
+          "Login failed. Please check your credentials.";
+        toast.error(errorMsg);
+        console.error("Login error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [router]
+  );
 
   // Logout function
   const logout = useCallback(() => {
@@ -111,6 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setIsAuthenticated(false);
     delete api.defaults.headers.common["Authorization"];
+
+    // Emit event to notify components that auth state has changed
+    emitAuthStateChanged();
+
     toast.success("Logged out successfully!");
     router.push("/signin");
   }, [router]);
@@ -140,6 +170,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Refresh user data
       const userResponse = await api.get("/accounts/auth/user/");
       setUser(userResponse.data);
+
+      // Emit event to notify components that auth state has changed
+      emitAuthStateChanged();
     } catch (error) {
       console.error("Token refresh failed:", error);
       logout();
@@ -169,7 +202,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, isLoading, user, token, login, logout, refreshToken }}
+      value={{
+        isAuthenticated,
+        isLoading,
+        user,
+        token,
+        login,
+        logout,
+        refreshToken,
+      }}
     >
       {children}
     </AuthContext.Provider>

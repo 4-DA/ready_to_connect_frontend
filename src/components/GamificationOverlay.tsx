@@ -1,4 +1,3 @@
-// src/components/GamificationOverlay.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -25,7 +24,9 @@ interface Badge {
 export default function GamificationOverlay() {
   const { isAuthenticated, token } = useAuth();
   const { level, points, badges, setGameData, fetchGameData } = useGameStore();
-  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
+  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(
+    null
+  );
   const [dailyChallenges, setDailyChallenges] = useState<Challenge[]>([]);
   const [isVisible, setIsVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,28 +34,47 @@ export default function GamificationOverlay() {
   const xpPerLevel = 100;
   const xpProgress = Math.min(((points % xpPerLevel) / xpPerLevel) * 100, 100);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!isAuthenticated || !token) {
-        setIsLoading(false);
-        return;
+  // Load data function
+  const loadData = async () => {
+    setIsLoading(true);
+
+    try {
+      // Attempt to load data if we have a token or if we already have some game data
+      if (token || points > 0 || level > 0 || badges.length > 0) {
+        if (token) {
+          await fetchGameData(token);
+          const challengesResponse = await api.get(
+            "/gamification/daily-challenges/"
+          );
+          setDailyChallenges(challengesResponse.data);
+        }
       }
-      setIsLoading(true);
-      try {
-        await fetchGameData(token);
-        const challengesResponse = await api.get("/gamification/daily-challenges/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setDailyChallenges(challengesResponse.data);
-      } catch (error) {
-        console.error("Error loading gamification data:", error);
+    } catch (error) {
+      console.error("Error loading gamification data:", error);
+      // Only show error if we're pretty sure user is logged in
+      if (isAuthenticated && token) {
         toast.error("Failed to load gamification data.");
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial data loading
+  useEffect(() => {
     loadData();
-  }, [isAuthenticated, token, fetchGameData]);
+
+    // Listen for authentication state changes
+    const handleAuthStateChange = () => {
+      loadData();
+    };
+
+    window.addEventListener("auth-state-changed", handleAuthStateChange);
+
+    return () => {
+      window.removeEventListener("auth-state-changed", handleAuthStateChange);
+    };
+  }, [token]); // Only re-run if token changes
 
   useEffect(() => {
     if (!isVisible || isLoading) return;
@@ -75,11 +95,10 @@ export default function GamificationOverlay() {
       return;
     }
     try {
-      const response = await api.post(
-        "/gamification/quiz-progress/",
-        { xp: xpGained, streak: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await api.post("/gamification/quiz-progress/", {
+        xp: xpGained,
+        streak: 1,
+      });
       const result = response.data;
       console.log("✅ Challenge progress saved:", result);
       setGameData({
@@ -106,7 +125,7 @@ export default function GamificationOverlay() {
     const newLevel = Math.floor(newPoints / xpPerLevel) + 1;
     setGameData({ points: newPoints, level: newLevel });
     if (newPoints >= newLevel * xpPerLevel) {
-      toast.success(`Level Up! You’re now Level ${newLevel}!`);
+      toast.success(`Level Up! You're now Level ${newLevel}!`);
     }
     if (challenge.id === 2 && !badges.some((b) => b.id === 3)) {
       const newBadge = { id: 3, name: "Application Ace", icon: "🏆" };
@@ -128,7 +147,16 @@ export default function GamificationOverlay() {
     );
   }
 
-  if (!isAuthenticated) {
+  // Consider user authenticated if:
+  // 1. They have auth context AND token, OR
+  // 2. They have game data (points, level, badges)
+  const userIsAuthenticated =
+    (isAuthenticated && !!token) ||
+    points > 0 ||
+    level > 0 ||
+    badges.length > 0;
+
+  if (!userIsAuthenticated) {
     return (
       <div className="fixed bottom-4 right-4 z-50 bg-[#252530] rounded-lg p-4 shadow-xl">
         <div className="text-white">Please log in to view gamification.</div>
@@ -183,10 +211,16 @@ export default function GamificationOverlay() {
                   <div className="flex items-center">
                     <span className="mr-3 text-xl">{challenge.icon}</span>
                     <div>
-                      <h4 className={`font-medium ${challenge.completed ? "text-gray-500" : "text-white"}`}>
+                      <h4
+                        className={`font-medium ${
+                          challenge.completed ? "text-gray-500" : "text-white"
+                        }`}
+                      >
                         {challenge.title}
                       </h4>
-                      <p className="text-xs text-gray-400">{challenge.description}</p>
+                      <p className="text-xs text-gray-400">
+                        {challenge.description}
+                      </p>
                     </div>
                   </div>
                   <button
@@ -223,7 +257,9 @@ export default function GamificationOverlay() {
                   </div>
                 ))
               ) : (
-                <p className="text-gray-400 col-span-3">No badges unlocked yet.</p>
+                <p className="text-gray-400 col-span-3">
+                  No badges unlocked yet.
+                </p>
               )}
             </div>
           </div>
