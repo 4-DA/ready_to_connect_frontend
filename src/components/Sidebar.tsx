@@ -1,10 +1,11 @@
+// components/Sidebar.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext"; // For authentication state
-import api from "@/utils/api"; // For fetching user data
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/app/providers/ThemeProvider";
 
 import GamesIcon from "@mui/icons-material/Games";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -24,85 +25,128 @@ interface NavItem {
   icon: React.ReactNode;
   label: string;
   href: string;
-  roles?: string[]; // Optional roles to restrict access
+  roles?: string[];
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  userType?: string;
+}
+
+export default function Sidebar({ userType = "student" }: SidebarProps) {
   const [expanded, setExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navItems, setNavItems] = useState<NavItem[]>([]);
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuth();
+  const { glassPrimary, glassBorder, gradientOverlay, primaryColor } =
+    useTheme();
 
-  // Toggle sidebar functions
   const toggleSidebar = () => setExpanded((prev) => !prev);
   const toggleMobileSidebar = () => setMobileOpen((prev) => !prev);
 
-  // Fetch user role and update nav items
   useEffect(() => {
-    const fetchUserRole = async () => {
+    const fetchNavItems = async () => {
       if (isAuthenticated && user) {
-        try {
-          // Optionally fetch user data if not fully available in AuthContext
-          const response = await api.get("/accounts/auth/user/", {
-            headers: { Authorization: `Bearer ${localStorage.getItem("access_token")}` },
-          });
-          const userRole = response.data.user_type || "student"; // Default to student
+        const effectiveUserType =
+          userType || user.user_type?.toLowerCase() || "student";
+        console.log("Sidebar - Effective User Type:", effectiveUserType);
 
-          // Define nav items based on role
-          const baseNavItems: NavItem[] = [
-            { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
-            { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/ai-mentor" },
-            // { icon: <GamesIcon />, label: "Gamification", href: "/gamification/" },
-            // { icon: <SignalCellularAltIcon />, label: "Leaderboard", href: "/gamification/leaderboard" },
-            // { icon: <StarIcon />, label: "Badges", href: "/gamification/badges" },
-            { icon: <SchoolIcon />, label: "Skill Assessment", href: "/skill-assessment" },
-            // { icon: <EmojiEventsIcon />, label: "XP History", href: "/gamification/xp-logs" },
-            { icon: <WorkIcon />, label: "Internships", href: "/internship" },
-          ];
+        const baseNavItems: NavItem[] = [
+          {
+            icon: <DashboardIcon />,
+            label: "Dashboard",
+            href: `/dashboard/${effectiveUserType}`,
+          },
+          {
+            icon: <AutoAwesomeIcon />,
+            label: "AI Mentor",
+            href: `/dashboard/${effectiveUserType}/ai-mentor`,
+            roles: ["student", "mentor"],
+          },
+          {
+            icon: <SchoolIcon />,
+            label: "Skill Assessment",
+            href: `/dashboard/${effectiveUserType}/skill-assessment`,
+            roles: ["student", "mentor"],
+          },
+          {
+            icon: <WorkIcon />,
+            label: "Internships",
+            href: `/dashboard/${effectiveUserType}/internship`,
+            roles: ["student"],
+          },
+          {
+            icon: <SettingsIcon />,
+            label: "Settings",
+            href: `/dashboard/${effectiveUserType}/settings`,
+          },
+          {
+            icon: <GamesIcon />,
+            label: "Gamification",
+            href: `/dashboard/${effectiveUserType}/gamification`,
+            roles: ["student"],
+          },
+          {
+            icon: <SignalCellularAltIcon />,
+            label: "Leaderboard",
+            href: `/dashboard/${effectiveUserType}/gamification/leaderboard`,
+            roles: ["student"],
+          },
+          {
+            icon: <StarIcon />,
+            label: "Badges",
+            href: `/dashboard/${effectiveUserType}/gamification/badges`,
+            roles: ["student"],
+          },
+          {
+            icon: <EmojiEventsIcon />,
+            label: "XP History",
+            href: `/dashboard/${effectiveUserType}/gamification/xp-logs`,
+            roles: ["student"],
+          },
+        ];
 
-          // Role-specific restrictions (example)
-          const roleBasedItems = baseNavItems.filter((item) => {
-            if (!item.roles) return true; // Allow if no roles specified
-            return item.roles.includes(userRole);
-          });
-          setNavItems(roleBasedItems);
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-        }
+        const roleBasedItems = baseNavItems.filter((item) =>
+          item.roles ? item.roles.includes(effectiveUserType) : true
+        );
+        console.log("Sidebar - Nav Items:", roleBasedItems);
+        setNavItems(roleBasedItems);
       } else {
-        // Default nav items for unauthenticated users
-        setNavItems([
-          { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
+        const unauthenticatedItems: NavItem[] = [
+          { icon: <DashboardIcon />, label: "Home", href: "/" },
           { icon: <PersonIcon />, label: "Sign In", href: "/signin" },
-        ]);
+        ];
+        console.log(
+          "Sidebar - Unauthenticated Nav Items:",
+          unauthenticatedItems
+        );
+        setNavItems(unauthenticatedItems);
       }
     };
 
-    fetchUserRole();
-  }, [isAuthenticated, user, router]);
+    fetchNavItems();
+  }, [isAuthenticated, user, userType]);
 
   const handleLogout = () => {
-    logout(); // Use AuthContext's logout
+    logout();
+    router.push("/signin");
   };
 
   if (!isAuthenticated && pathname !== "/signin") {
-    return null; // Hide sidebar for unauthenticated users except on sign-in page
+    return null;
   }
 
   return (
     <>
-      {/* Mobile Menu Toggle Button */}
       <button
-        className="fixed top-4 left-4 z-50 md:hidden bg-[#252530] p-2 rounded-lg text-gray-200 hover:bg-[#1a1a22] transition"
+        className={`fixed top-4 left-4 z-50 md:hidden ${glassPrimary} ${glassBorder} p-2 rounded-lg text-gray-200 hover:bg-${primaryColor}-600/30 transition`}
         onClick={toggleMobileSidebar}
         aria-label="Toggle mobile menu"
       >
         <MenuIcon />
       </button>
 
-      {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
@@ -111,16 +155,17 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
       <div
-        className={`fixed h-full z-50 bg-[#1a1a22] shadow-xl transition-all duration-300 ease-in-out ${
+        className={`fixed h-full z-50 ${glassPrimary} ${glassBorder} shadow-xl transition-all duration-300 ease-in-out ${
           expanded ? "w-64" : "w-16"
-        } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
-        role="navigation"
-        aria-label="Main navigation"
+        } ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
+        <div
+          className={`absolute top-0 left-0 w-full h-full ${gradientOverlay} z-0`}
+        ></div>
+        <div className="flex flex-col h-full relative z-10">
           <div className="flex items-center p-4 justify-between">
             <div className="flex items-center">
               {expanded && (
@@ -138,32 +183,39 @@ export default function Sidebar() {
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="flex flex-col gap-2 mt-8 px-3" aria-labelledby="nav-label">
-            <span id="nav-label" className="sr-only">Navigation Menu</span>
-            {navItems.map((item, index) => (
-              <Link
-                href={item.href}
-                key={index}
-                className={`flex items-center gap-3 p-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
-                  pathname === item.href
-                    ? "text-purple-400 bg-[#2a2a35]"
-                    : "text-gray-400 hover:text-purple-400 hover:bg-[#252530]"
-                }`}
-                aria-current={pathname === item.href ? "page" : undefined}
-              >
-                <div className="text-lg">{item.icon}</div>
-                {expanded && <span>{item.label}</span>}
-              </Link>
-            ))}
+          <nav
+            className="flex flex-col gap-2 mt-8 px-3"
+            aria-labelledby="nav-label"
+          >
+            <span id="nav-label" className="sr-only">
+              Navigation Menu
+            </span>
+            {navItems.length === 0 ? (
+              <div className="text-gray-400 p-2">Loading navigation...</div>
+            ) : (
+              navItems.map((item) => (
+                <Link
+                  href={item.href}
+                  key={item.href}
+                  className={`flex items-center gap-3 p-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                    pathname === item.href
+                      ? `text-${primaryColor}-400 bg-${primaryColor}-600/20`
+                      : `text-gray-400 hover:text-${primaryColor}-400 hover:bg-${primaryColor}-600/10`
+                  }`}
+                  aria-current={pathname === item.href ? "page" : undefined}
+                >
+                  <div className="text-lg">{item.icon}</div>
+                  {expanded && <span>{item.label}</span>}
+                </Link>
+              ))
+            )}
           </nav>
 
-          {/* Logout Button */}
           {isAuthenticated && (
             <div className="mt-auto p-3">
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-[#252530] transition-all w-full"
+                className={`flex items-center gap-3 p-2 rounded-lg text-gray-400 hover:text-${primaryColor}-400 hover:bg-${primaryColor}-600/10 transition-all w-full`}
                 aria-label="Logout"
               >
                 <ExitToAppIcon />

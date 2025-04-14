@@ -124,7 +124,7 @@ const StatsCards: React.FC = () => {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="bg-gray-700 rounded-lg p-6 animate-pulse h-24"
+            className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 animate-pulse h-24 shadow-lg"
           ></div>
         ))}
       </div>
@@ -134,10 +134,13 @@ const StatsCards: React.FC = () => {
   // Display an error message if fetching fails.
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400 text-sm">
+      <div className="bg-red-500/10 backdrop-blur-sm border border-red-500/20 rounded-xl p-5 text-red-300 text-sm shadow-lg">
         {error}
-        <div className="mt-2">
-          <button onClick={fetchUserStats} className="text-blue-400 underline">
+        <div className="mt-3">
+          <button
+            onClick={fetchUserStats}
+            className="px-4 py-2 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-medium rounded-lg transition-colors duration-200"
+          >
             Retry
           </button>
         </div>
@@ -146,29 +149,30 @@ const StatsCards: React.FC = () => {
   }
 
   // Create an array of card definitions based on user stats.
+  // Using a modern glassmorphism style for all cards
   const cards = [
     {
       id: "streak",
       title: "Streak",
       value: `${stats.streak} Days`,
       icon: (
-        <LocalFireDepartmentIcon className="text-orange-500 text-4xl mb-2" />
+        <LocalFireDepartmentIcon className="text-indigo-400 text-4xl mb-2" />
       ),
-      bgClass: "bg-gradient-to-r from-blue-500 to-blue-400",
+      bgClass: "bg-white/10 backdrop-blur-md border border-white/20",
     },
     {
       id: "xp",
       title: "XP Points",
       value: stats.xp.toLocaleString(), // Ensures number is formatted properly.
-      icon: <PointsIcon className="text-yellow-500 text-4xl mb-2" />,
-      bgClass: "bg-gradient-to-r from-purple-600 to-purple-400",
+      icon: <PointsIcon className="text-indigo-400 text-4xl mb-2" />,
+      bgClass: "bg-white/10 backdrop-blur-md border border-white/20",
     },
     {
       id: "level",
       title: "Level",
       value: stats.level.toString(),
-      icon: <LevelIcon className="text-green-500 text-4xl mb-2" />,
-      bgClass: "bg-gradient-to-r from-green-500 to-green-300",
+      icon: <LevelIcon className="text-indigo-400 text-4xl mb-2" />,
+      bgClass: "bg-white/10 backdrop-blur-md border border-white/20",
     },
   ];
 
@@ -197,12 +201,15 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, bgClass, icon }) => {
   return (
-    <div className={`${bgClass} rounded-lg p-6 text-white flex flex-col`}>
-      <div className="flex items-center gap-2 mb-2 text-sm opacity-90">
+    <div
+      className={`${bgClass} rounded-xl p-6 text-white flex flex-col shadow-lg relative overflow-hidden`}
+    >
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20 z-0"></div>
+      <div className="z-10 flex items-center gap-2 mb-2 text-sm font-medium">
         {icon}
         <span>{title}</span>
       </div>
-      <div className="text-3xl font-bold">{value}</div>
+      <div className="z-10 text-3xl font-bold">{value}</div>
     </div>
   );
 };
