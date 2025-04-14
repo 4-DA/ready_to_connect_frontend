@@ -1,12 +1,13 @@
 "use client";
-import Sidebar from "./Sidebar";
-import ActivityFeed from "./ActivityFeed";
-import StatsCards from "./StatsCard";
-import Calendar from "./Calendar";
-import ProgressSection from "./ProgressSection";
-import GamificationOverlay from "./GamificationOverlay";
+import Sidebar from "../Sidebar";
+import ActivityFeed from "../ActivityFeed";
+import StatsCards from "../StatsCard";
+import Calendar from "../Calendar";
+import ProgressSection from "../ProgressSection";
+import GamificationOverlay from "../GamificationOverlay";
 import { useState, useEffect, createContext, useContext } from "react";
-import api from "@/utils/api"; // ✅ centralized Axios instance
+import api from "@/utils/api";
+import { useRouter } from "next/navigation";
 
 // Define the User interface to match the stored user structure
 interface User {
@@ -31,6 +32,7 @@ interface ThemeContextType {
   glassBorder: string;
   gradientOverlay: string;
   user: User | null;
+  loading: boolean;
   refreshUserData: () => Promise<void>;
 }
 
@@ -43,6 +45,7 @@ const ThemeContext = createContext<ThemeContextType>({
   glassBorder: "border border-white/20",
   gradientOverlay: "bg-gradient-to-br from-indigo-600/20 to-purple-600/20",
   user: null,
+  loading: false,
   refreshUserData: async () => {},
 });
 
@@ -60,7 +63,6 @@ const getUserTheme = (user: User | null) => {
     };
   }
 
-  // Different themes based on user_type
   switch (user.user_type.toLowerCase()) {
     case "admin":
       return {
@@ -71,6 +73,17 @@ const getUserTheme = (user: User | null) => {
         glassSecondary: "bg-white/5 backdrop-blur-sm",
         glassBorder: "border border-white/20",
         gradientOverlay: "bg-gradient-to-br from-emerald-600/20 to-teal-600/20",
+      };
+    case "mentor":
+      return {
+        primaryColor: "sage",
+        secondaryColor: "terracotta",
+        accentColor: "sage-400",
+        glassPrimary: "bg-white/10 backdrop-blur-md",
+        glassSecondary: "bg-white/5 backdrop-blur-sm",
+        glassBorder: "border border-white/20",
+        gradientOverlay:
+          "bg-gradient-to-br from-sage-600/20 to-terracotta-600/20",
       };
     case "premium":
       return {
@@ -104,58 +117,126 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [theme, setTheme] = useState(getUserTheme(null));
+  const router = useRouter();
 
-  // Fetch latest user from backend
+  // Fetch latest user from backend and redirect if needed
   useEffect(() => {
     const fetchUser = async () => {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        console.error(
+          "Dashboard - No access token found in localStorage. Cannot fetch user data."
+        );
+        setLoadingUser(false);
+        return;
+      }
+
       try {
-        const response = await api.get("/accounts/auth/user/"); // ✅ real user endpoint
-        setUser(response.data);
-        setTheme(getUserTheme(response.data));
-        localStorage.setItem("user", JSON.stringify(response.data)); // 🛡️ update local storage
+        console.log(
+          "Dashboard - Fetching user data from /accounts/auth/user/ with token:",
+          token
+        );
+        const response = await api.get("/accounts/auth/user/");
+        console.log(
+          "Dashboard - User data fetched successfully:",
+          response.data
+        );
+
+        const userData = response.data;
+        setUser(userData);
+        setTheme(getUserTheme(userData));
+        localStorage.setItem("user", JSON.stringify(userData));
+
+        // Check user type for redirect
+        checkUserTypeAndRedirect(userData);
       } catch (error) {
-        console.error("Error fetching user data:", error);
-        // Try to load from localStorage if API fails
+        console.error("Dashboard - Error fetching user data:", error);
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
           const userData = JSON.parse(storedUser);
+          console.log(
+            "Dashboard - Using stored user data as fallback:",
+            userData
+          );
           setUser(userData);
           setTheme(getUserTheme(userData));
+
+          // Check user type for redirect using stored data
+          checkUserTypeAndRedirect(userData);
+        } else {
+          console.error(
+            "Dashboard - No stored user data available. User fetch failed."
+          );
         }
       } finally {
         setLoadingUser(false);
       }
     };
-    fetchUser();
-  }, []);
 
-  // 🔥 NEW: Refresh User Gamification Data
+    const checkUserTypeAndRedirect = (userData: User) => {
+      if (!userData || !userData.user_type) return;
+
+      const userType = userData.user_type.toLowerCase().trim();
+      const currentPath = window.location.pathname;
+
+      // Only redirect if we're on the main dashboard path
+      if (currentPath === "/dashboard") {
+        console.log("Dashboard - Checking user type for redirect:", userType);
+
+        if (userType === "mentor" || userType === "teacher") {
+          console.log("Dashboard - Redirecting to mentor dashboard");
+          router.push("/dashboard/mentor");
+        } else if (userType === "student") {
+          console.log("Dashboard - Redirecting to student dashboard");
+          router.push("/dashboard/student");
+        }
+      }
+    };
+
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      console.log("Dashboard - Using initial stored user data:", userData);
+      setUser(userData);
+      setTheme(getUserTheme(userData));
+      setLoadingUser(false);
+
+      // Check user type for redirect using stored data
+      checkUserTypeAndRedirect(userData);
+    } else {
+      fetchUser();
+    }
+  }, [router]);
+
+  // Refresh User Gamification Data
   const refreshUserData = async () => {
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("access_token")
         : null;
     if (!token) {
-      console.error("No token found.");
+      console.error(
+        "Dashboard - No token found for gamification data refresh."
+      );
       return;
     }
     try {
+      console.log("Dashboard - Fetching gamification data...");
       const response = await api.get("/gamification/dashboard/");
       const dashboardData = response.data;
       setUser((prevUser) => {
-        if (!prevUser) return null; // no user yet
+        if (!prevUser) return null;
         const updatedUser: User = {
           ...prevUser,
           xp: dashboardData.total_xp,
           streak: dashboardData.current_streak,
           level: dashboardData.current_level,
         };
-        // Also update localStorage
         localStorage.setItem("user", JSON.stringify(updatedUser));
         return updatedUser;
       });
     } catch (error) {
-      console.error("Error refreshing user gamification data:", error);
+      console.error("Dashboard - Error refreshing gamification data:", error);
     }
   };
 
@@ -206,9 +287,10 @@ export default function Dashboard() {
   };
 
   return (
-    <ThemeContext.Provider value={{ ...theme, user, refreshUserData }}>
+    <ThemeContext.Provider
+      value={{ ...theme, user, loading: loadingUser, refreshUserData }}
+    >
       <div className="flex min-h-screen bg-[#0e0e13] text-white relative">
-        {/* Decorative background elements */}
         <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
           <div
             className={`absolute top-1/4 left-1/4 w-1/3 h-1/3 rounded-full bg-${theme.primaryColor}-600/20 blur-3xl`}
@@ -220,8 +302,8 @@ export default function Dashboard() {
 
         <Sidebar />
         <div className="flex-1 p-6 pl-20 relative z-10">
-          <header className="flex justify-end items-center mb-6">
-            {/* User Info */}
+          <header className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-white">General Dashboard</h1>
             <div className="flex items-center gap-4">
               <UserProfile />
             </div>

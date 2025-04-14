@@ -1,16 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import api from "@/utils/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGameStore } from "@/contexts/GameContext";
 
+// Match interface with what's in GameContext
+interface GameChallenge {
+  id: number;
+  title: string;
+  description: string;
+  pointsAvailable: number;
+  icon: string;
+  completed?: boolean;
+}
+
+// For internal use - handles both formats
 interface Challenge {
   id: number;
   title: string;
   description: string;
-  xpReward: number;
+  pointsAvailable?: number;
+  xpReward?: number;
   icon: string;
   completed?: boolean;
 }
@@ -22,7 +34,7 @@ interface Badge {
 }
 
 export default function GamificationOverlay() {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, user } = useAuth();
   const { level, points, badges, setGameData, fetchGameData } = useGameStore();
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(
     null
@@ -34,48 +46,74 @@ export default function GamificationOverlay() {
   const xpPerLevel = 100;
   const xpProgress = Math.min(((points % xpPerLevel) / xpPerLevel) * 100, 100);
 
+  // Convert API challenges to match expected format
+  const normalizeChallenges = (challenges: any[]): Challenge[] => {
+    return challenges.map((challenge) => ({
+      ...challenge,
+      // Ensure both properties exist for compatibility
+      pointsAvailable: challenge.pointsAvailable || challenge.xpReward || 10,
+      xpReward: challenge.xpReward || challenge.pointsAvailable || 10,
+    }));
+  };
+
   // Load data function
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
+    console.log("GamificationOverlay - Loading data, token:", !!token);
 
     try {
       // Attempt to load data if we have a token or if we already have some game data
       if (token || points > 0 || level > 0 || badges.length > 0) {
         if (token) {
+          // Ensure authorization header is set
+          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+          // Load game data first
           await fetchGameData(token);
-          const challengesResponse = await api.get(
-            "/gamification/daily-challenges/"
-          );
-          setDailyChallenges(challengesResponse.data);
+
+          // Then fetch challenges
+          try {
+            const challengesResponse = await api.get(
+              "/gamification/daily-challenges/"
+            );
+            const normalizedChallenges = normalizeChallenges(
+              challengesResponse.data
+            );
+            setDailyChallenges(normalizedChallenges);
+          } catch (challengeError) {
+            console.error("Error loading challenges:", challengeError);
+          }
         }
       }
     } catch (error) {
       console.error("Error loading gamification data:", error);
-      // Only show error if we're pretty sure user is logged in
       if (isAuthenticated && token) {
         toast.error("Failed to load gamification data.");
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, isAuthenticated, points, level, badges.length, fetchGameData]);
 
   // Initial data loading
   useEffect(() => {
     loadData();
+  }, [loadData]);
 
-    // Listen for authentication state changes
+  // Listen for authentication state changes
+  useEffect(() => {
     const handleAuthStateChange = () => {
+      console.log("GamificationOverlay: Auth state changed, reloading data");
       loadData();
     };
 
     window.addEventListener("auth-state-changed", handleAuthStateChange);
-
     return () => {
       window.removeEventListener("auth-state-changed", handleAuthStateChange);
     };
-  }, [token]); // Only re-run if token changes
+  }, [loadData]);
 
+  // Auto-hide timer
   useEffect(() => {
     if (!isVisible || isLoading) return;
     const timer = setTimeout(() => {
@@ -94,20 +132,33 @@ export default function GamificationOverlay() {
       toast.error("Please log in to save progress.");
       return;
     }
+
     try {
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
       const response = await api.post("/gamification/quiz-progress/", {
         xp: xpGained,
         streak: 1,
       });
+
       const result = response.data;
       console.log("✅ Challenge progress saved:", result);
+
       setGameData({
         points: result.total_xp,
         level: result.current_level,
       });
+
+      // Refresh user data if global function exists
       if (typeof (globalThis as any).refreshUserData === "function") {
         await (globalThis as any).refreshUserData();
       }
+
+      // Notify other components
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("game-data-updated"));
+      }
+
       toast.success(`+${xpGained} XP saved!`);
     } catch (error) {
       console.error("❌ Error saving challenge progress:", error);
@@ -120,36 +171,54 @@ export default function GamificationOverlay() {
       toast.error("Challenge already completed!");
       return;
     }
+
+    // Get reward points from either property
+    const rewardPoints = challenge.pointsAvailable || challenge.xpReward || 10;
+
     setActiveChallenge(challenge);
-    const newPoints = points + challenge.xpReward;
+    const newPoints = points + rewardPoints;
     const newLevel = Math.floor(newPoints / xpPerLevel) + 1;
+
+    // Update game data
     setGameData({ points: newPoints, level: newLevel });
+
+    // Level up notification
     if (newPoints >= newLevel * xpPerLevel) {
       toast.success(`Level Up! You're now Level ${newLevel}!`);
     }
+
+    // Badge unlock logic
     if (challenge.id === 2 && !badges.some((b) => b.id === 3)) {
       const newBadge = { id: 3, name: "Application Ace", icon: "🏆" };
       setGameData({ badges: [...badges, newBadge] });
       toast.success(`Badge Unlocked: ${newBadge.name}!`);
     }
-    await saveChallengeProgress(challenge.xpReward);
+
+    // Save progress to server
+    await saveChallengeProgress(rewardPoints);
+
+    // Update local state
     setDailyChallenges((prev) =>
       prev.map((c) => (c.id === challenge.id ? { ...c, completed: true } : c))
     );
+
+    // Hide notification after delay
     setTimeout(() => setActiveChallenge(null), 3000);
   };
 
+  // Enhanced loading state with spinner
   if (isLoading) {
     return (
       <div className="fixed bottom-4 right-4 z-50 bg-[#252530] rounded-lg p-4 shadow-xl">
-        <div className="text-white">Loading gamification data...</div>
+        <div className="text-white flex items-center">
+          <div className="animate-spin mr-2 h-4 w-4 border-2 border-purple-500 rounded-full border-t-transparent"></div>
+          Loading gamification data...
+        </div>
       </div>
     );
   }
 
-  // Consider user authenticated if:
-  // 1. They have auth context AND token, OR
-  // 2. They have game data (points, level, badges)
+  // Check if user is authenticated
   const userIsAuthenticated =
     (isAuthenticated && !!token) ||
     points > 0 ||
@@ -269,7 +338,10 @@ export default function GamificationOverlay() {
               <span className="mr-3 text-xl">✨</span>
               <div>
                 <h4 className="font-semibold">Challenge Completed!</h4>
-                <p className="text-sm">+{activeChallenge.xpReward} XP</p>
+                <p className="text-sm">
+                  +{activeChallenge.pointsAvailable || activeChallenge.xpReward}{" "}
+                  XP
+                </p>
               </div>
             </div>
           )}

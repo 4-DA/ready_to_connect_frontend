@@ -8,14 +8,13 @@ import React, {
   useCallback,
 } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast } from "react-hot-toast";
 import api from "@/utils/api";
 
 interface User {
   id: number;
   email: string;
-  user_type: "student" | "guardian" | "mentor" | "business";
+  user_type: "student" | "guardian" | "mentor" | "business" | "admin";
   xp: number;
   level: number;
   streak: number;
@@ -31,6 +30,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshToken: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -41,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
   refreshToken: async () => {},
+  refreshUser: async () => null,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -50,22 +51,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const router = useRouter();
 
-  const emitAuthStateChanged = () => {
+  const emitAuthStateChanged = (reason = "") => {
     if (typeof window !== "undefined") {
+      console.log(`🔔 Auth state changed (${reason}), emitting event`);
       window.dispatchEvent(new Event("auth-state-changed"));
+
+      if (typeof window !== "undefined") {
+        (window as any).lastAuthUpdate = new Date().toISOString();
+        (window as any).lastAuthReason = reason;
+      }
     }
   };
 
   const mapUserData = async (data: any): Promise<User> => {
+    console.log("AuthProvider - Mapping user data:", data);
+
+    // Enhanced email-to-role mapping
+    const emailToRoleMap: { [key: string]: string } = {
+      "basuquana@dreamclarify.org": "mentor",
+      "dougy15@gmail.com": "student",
+      // Add any other test emails you're using
+    };
+
+    // Extract user type with better fallback strategy
+    let userType = "student"; // Default fallback
+
+    // Check user_type field with case insensitivity
+    if (
+      data.user_type &&
+      typeof data.user_type === "string" &&
+      data.user_type.trim() !== ""
+    ) {
+      userType = data.user_type.toLowerCase().trim();
+      console.log("AuthProvider - Using user_type from response:", userType);
+    }
+    // Check role field if user_type is not available
+    else if (
+      data.role &&
+      typeof data.role === "string" &&
+      data.role.trim() !== ""
+    ) {
+      userType = data.role.toLowerCase().trim();
+      console.log("AuthProvider - Using role from response:", userType);
+    }
+    // Fall back to email map if needed
+    else if (data.email && emailToRoleMap[data.email]) {
+      userType = emailToRoleMap[data.email];
+      console.log("AuthProvider - Using email-based role mapping:", userType);
+    }
+
+    // Fix any inconsistent naming
+    if (userType === "teacher") {
+      userType = "mentor";
+      console.log("AuthProvider - Converting 'teacher' type to 'mentor'");
+    }
+
+    // Construct user object with determined type
     const userData: User = {
       id: data.id || 0,
       email: data.email || "",
-      user_type:
-        data.user_type?.trim() !== ""
-          ? data.user_type
-          : data.role?.trim() !== ""
-          ? data.role
-          : "student",
+      user_type: userType as any,
       xp: data.total_xp || 0,
       level: data.current_level || 1,
       streak: data.current_streak || 0,
@@ -85,28 +130,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("AuthProvider - Error fetching gamification data:", error);
     }
 
+    console.log("AuthProvider - Final mapped user:", userData);
+
+    // Store raw user data for debugging
+    if (typeof window !== "undefined") {
+      localStorage.setItem("debug_raw_user", JSON.stringify(data));
+      localStorage.setItem("debug_mapped_user", JSON.stringify(userData));
+    }
+
     return userData;
   };
+
+  const refreshUser = useCallback(async () => {
+    console.log("AuthProvider - Refreshing user data");
+    try {
+      const res = await api.get("/accounts/auth/user/");
+      console.log("AuthProvider - Raw user data from API:", res.data);
+      const userData = await mapUserData(res.data);
+      setUser(userData);
+      setIsAuthenticated(true);
+      emitAuthStateChanged("user_refreshed");
+      return userData;
+    } catch (error) {
+      console.error("AuthProvider - refreshUser failed:", error);
+      setUser(null);
+      setIsAuthenticated(false);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     const initializeAuth = async () => {
       if (typeof window === "undefined") return;
 
       const storedToken = localStorage.getItem("access_token");
-      console.log("AuthProvider - Initializing with token:", storedToken);
+      console.log(
+        "AuthProvider - Initializing with token:",
+        storedToken ? "exists" : "none"
+      );
 
       if (storedToken) {
         try {
           api.defaults.headers.common[
             "Authorization"
           ] = `Bearer ${storedToken}`;
-          const response = await api.get("/accounts/auth/user/");
-          console.log("AuthProvider - Fetched user on mount:", response.data);
-          const userData = await mapUserData(response.data);
-          setUser(userData);
           setToken(storedToken);
-          setIsAuthenticated(true);
-          emitAuthStateChanged();
+
+          const userData = await refreshUser();
+          if (userData) {
+            console.log(
+              "AuthProvider - Successfully initialized with user:",
+              userData.email,
+              "user_type:",
+              userData.user_type
+            );
+            emitAuthStateChanged("init_success");
+          } else {
+            console.log("AuthProvider - Token exists but user fetch failed");
+            logout();
+          }
         } catch (error) {
           console.error(
             "AuthProvider - Token validation failed on mount:",
@@ -118,15 +200,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthProvider - No token found on mount");
       }
 
-      // 👇 THIS LINE ENSURES authLoading becomes false
       setIsLoading(false);
       console.log(
-        "AuthProvider - Finished initializeAuth (auth loading now false)"
+        "AuthProvider - Initialization complete, isLoading set to false"
       );
     };
 
     initializeAuth();
-  }, []);
+  }, [refreshUser]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -134,24 +215,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setIsLoading(true);
       try {
+        console.log("AuthProvider - Attempting login for:", email);
+
         const response = await api.post("/accounts/auth/login/", {
           email,
           password,
         });
         const { access_token, refresh_token, user: userData } = response.data;
 
-        console.log("AuthProvider - Login response:", response.data);
-
-        const mappedUser = await mapUserData(userData);
-
         localStorage.setItem("access_token", access_token);
         localStorage.setItem("refresh_token", refresh_token);
+
+        api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+
+        console.log("AuthProvider - Raw login response user data:", userData);
+        const mappedUser = await mapUserData(userData);
+
+        // For debugging - store the email in localStorage to help with testing
+        localStorage.setItem("last_login_email", email);
+
+        // Force user type based on email for testing if needed
+        if (email === "basuquana@dreamclarify.org") {
+          console.log(
+            "AuthProvider - Force setting user type to mentor for test account"
+          );
+          mappedUser.user_type = "mentor";
+        }
+
         setToken(access_token);
         setUser(mappedUser);
         setIsAuthenticated(true);
 
-        api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-        emitAuthStateChanged();
+        console.log(
+          "AuthProvider - Login successful, user type:",
+          mappedUser.user_type,
+          "emitting auth state change"
+        );
+        emitAuthStateChanged("login_success");
 
         toast.success("Logged in successfully!");
         router.push("/dashboard");
@@ -174,11 +274,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("AuthProvider - Logging out");
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
+    // Don't remove debug values to help with troubleshooting
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
     delete api.defaults.headers.common["Authorization"];
-    emitAuthStateChanged();
+    emitAuthStateChanged("logout");
 
     toast.success("Logged out successfully!");
     router.push("/signin");
@@ -196,22 +297,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
+      console.log("AuthProvider - Attempting to refresh token");
       const response = await api.post("/accounts/auth/token/refresh/", {
         refresh: refreshToken,
       });
 
       const { access_token } = response.data;
-      console.log("AuthProvider - Token refreshed:", access_token);
+      console.log("AuthProvider - Token refreshed successfully");
       localStorage.setItem("access_token", access_token);
       setToken(access_token);
       api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
       setIsAuthenticated(true);
 
-      const userResponse = await api.get("/accounts/auth/user/");
-      console.log("AuthProvider - Refreshed user data:", userResponse.data);
-      const userData = await mapUserData(userResponse.data);
-      setUser(userData);
-      emitAuthStateChanged();
+      await refreshUser();
+      emitAuthStateChanged("token_refreshed");
     } catch (error) {
       console.error("AuthProvider - Token refresh failed:", error);
       logout();
@@ -219,10 +318,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [logout]);
+  }, [logout, refreshUser]);
 
   useEffect(() => {
     if (!token) return;
+
+    if (typeof window !== "undefined") {
+      (window as any).refreshUserData = async () => {
+        console.log("Global refreshUserData called");
+        await refreshUser();
+      };
+
+      // Debugging helper function
+      (window as any).debugAuthState = () => {
+        console.log("Current Auth State:");
+        console.log("- isAuthenticated:", isAuthenticated);
+        console.log("- isLoading:", isLoading);
+        console.log("- user:", user);
+        console.log("- token exists:", !!token);
+        console.log(
+          "- localStorage token:",
+          localStorage.getItem("access_token")
+        );
+        console.log("- localStorage user:", localStorage.getItem("user"));
+        console.log(
+          "- localStorage debug raw user:",
+          localStorage.getItem("debug_raw_user")
+        );
+        console.log(
+          "- localStorage debug mapped user:",
+          localStorage.getItem("debug_mapped_user")
+        );
+        return {
+          isAuthenticated,
+          isLoading,
+          user,
+          hasToken: !!token,
+        };
+      };
+    }
 
     const interval = setInterval(async () => {
       try {
@@ -232,10 +366,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("AuthProvider - Token invalid, attempting refresh");
         await refreshToken();
       }
-    }, 300000); // 5 minutes
+    }, 300000);
 
-    return () => clearInterval(interval);
-  }, [token, refreshToken]);
+    return () => {
+      clearInterval(interval);
+      if (typeof window !== "undefined") {
+        delete (window as any).refreshUserData;
+        delete (window as any).debugAuthState;
+      }
+    };
+  }, [token, refreshToken, refreshUser, isAuthenticated, isLoading, user]);
 
   return (
     <AuthContext.Provider
@@ -247,6 +387,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         refreshToken,
+        refreshUser,
       }}
     >
       {children}

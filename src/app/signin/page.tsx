@@ -6,140 +6,134 @@ import api from "@/utils/api"; // ✅ centralized axios instance
 
 export default function Signin() {
   const [user, setUser] = useState({ email: "", password: "" });
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setUser((prevUser) => ({ ...prevUser, [name]: value }));
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
     setIsLoading(true);
+    setError("");
+
     try {
-      const response = await api.post("/accounts/auth/login/", {
+      console.log("Attempting login with:", user.email);
+
+      // Remember the email for debugging purposes
+      localStorage.setItem("last_login_email", user.email);
+
+      const response = await api.post("/auth/login", {
         email: user.email,
         password: user.password,
       });
+
+      // Handle successful login
       const data = response.data;
-      // ✅ Save both access_token and refresh_token correctly
-      if (data.access && data.refresh) {
+      console.log("Login response:", data);
+
+      // Store the access token
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+      } else if (data.access) {
         localStorage.setItem("access_token", data.access);
-        localStorage.setItem("refresh_token", data.refresh);
-      } else {
-        console.error("No tokens received during login.");
-        throw new Error("Invalid login response from server.");
       }
-      // ✅ OPTIONAL: Save user info
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-      }
-      // ✅ Redirect to dashboard or home
-      router.push("/");
+
+      // After successful login, simply redirect to dashboard
+      // The dashboard component will handle showing the correct dashboard type
+      console.log("Login successful, redirecting to dashboard");
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err);
-      if (err.response) {
-        const data = err.response.data;
-        if (data.detail) {
-          setError(data.detail);
-        } else if (data.non_field_errors) {
-          setError(data.non_field_errors.join(" "));
-        } else if (data.email) {
-          setError(data.email.join(" "));
-        } else if (data.password) {
-          setError(data.password.join(" "));
-        } else {
-          setError("Login failed. Please check your credentials.");
-        }
-      } else {
-        setError("Connection error. Please try again later.");
-      }
+      setError(
+        err.response?.data?.message || "Login failed. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#0e0e13] to-[#1a1a2a]">
-      <div className="bg-[#1a1a22] p-10 rounded-xl shadow-xl w-96 border border-[#2a2a35] relative">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center relative">
-            <div className="absolute w-20 h-20 bg-purple-500 rounded-full blur-xl opacity-30 animate-pulse"></div>
-            <span className="text-3xl font-bold text-white relative z-10">
-              R
-            </span>
-          </div>
-        </div>
+    <div className="flex min-h-screen bg-[#0e0e13] text-white">
+      {/* Background gradients */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-1/3 h-1/3 rounded-full bg-indigo-600/20 blur-3xl"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-1/4 h-1/4 rounded-full bg-purple-600/15 blur-3xl"></div>
+      </div>
 
-        <h2 className="text-2xl font-bold mb-6 text-white text-center">
+      <div className="m-auto max-w-md w-full p-8 bg-black/30 backdrop-blur-lg rounded-xl border border-gray-800">
+        <h2 className="text-2xl font-bold mb-6 text-center text-white">
           Sign In
         </h2>
 
         {error && (
-          <div className="bg-red-500 bg-opacity-20 border border-red-500 rounded p-3 mb-4 text-red-400">
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded text-red-200 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            required
-            value={user.email}
-            className="w-full px-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all"
-            onChange={(e) => setUser({ ...user, email: e.target.value })}
-          />
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              value={user.email}
+              onChange={handleChange}
+              className="w-full rounded bg-gray-900 border border-gray-700 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
 
-          <input
-            type="password"
-            placeholder="Password"
-            required
-            value={user.password}
-            className="w-full px-4 py-3 border rounded-lg bg-[#2a2a35] text-white border-[#3a3a45] focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all"
-            onChange={(e) => setUser({ ...user, password: e.target.value })}
-          />
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              value={user.password}
+              onChange={handleChange}
+              className="w-full rounded bg-gray-900 border border-gray-700 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
 
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-md font-medium"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Signing In...
-              </span>
-            ) : (
-              "Sign In"
-            )}
-          </button>
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? "Signing in..." : "Sign In"}
+            </button>
+          </div>
         </form>
 
-        <p className="mt-4 text-center text-white">
-          Do not have an account?{" "}
-          <Link href="/signup" className="text-purple-500 bold">
-            Sign Up
-          </Link>
-        </p>
+        <div className="mt-6 text-center text-sm text-gray-400">
+          <p>
+            Don't have an account?{" "}
+            <Link
+              href="/signup"
+              className="text-indigo-400 hover:text-indigo-300"
+            >
+              Sign Up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

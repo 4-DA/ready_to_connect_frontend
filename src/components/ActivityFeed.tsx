@@ -1,4 +1,3 @@
-// components/ActivityFeed.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -29,19 +28,31 @@ interface Notification {
 }
 
 export default function ActivityFeed() {
-  const { isAuthenticated, token } = useAuth();
-  const { level, points, badges } = useGameStore();
+  const { isAuthenticated, token, isLoading, user } = useAuth();
+  const { level, points, badges, lastUpdated } = useGameStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
 
-  const userIsLoggedIn = isAuthenticated && !!token;
+  // Enhanced check for logged in state that includes more fallbacks
+  const userIsLoggedIn =
+    (isAuthenticated && !!token && !isLoading) ||
+    !!user ||
+    points > 0 ||
+    level > 0 ||
+    badges.length > 0;
 
   const fetchNotifications = useCallback(async () => {
+    console.log(
+      "ActivityFeed - Fetching notifications, user logged in:",
+      userIsLoggedIn
+    );
     setHasAttemptedFetch(true);
+
     if (!userIsLoggedIn) {
       setLoading(false);
       setNotifications([]);
@@ -50,17 +61,24 @@ export default function ActivityFeed() {
 
     try {
       setLoading(true);
+
+      // Ensure the Authorization header is set
+      const storedToken = token || localStorage.getItem("access_token");
+      if (storedToken) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+      }
+
       const response = await api.get("/accounts/notifications/");
+      console.log("ActivityFeed - Notifications response:", response.data);
+
       let fetchedNotifications: Notification[] = [];
 
       if (response.data && Array.isArray(response.data.results)) {
-        // Handle paginated response
         fetchedNotifications = response.data.results.map((n: Notification) => ({
           ...n,
           id: n.id.toString(),
         }));
       } else if (Array.isArray(response.data)) {
-        // Handle non-paginated response (fallback)
         fetchedNotifications = response.data.map((n: Notification) => ({
           ...n,
           id: n.id.toString(),
@@ -82,18 +100,76 @@ export default function ActivityFeed() {
     } finally {
       setLoading(false);
     }
-  }, [userIsLoggedIn]);
+  }, [userIsLoggedIn, token]);
 
+  // Initial fetch and interval
   useEffect(() => {
     fetchNotifications();
+
+    // Re-fetch every 30 seconds
     const interval = setInterval(() => {
       if (!isMarkingAllRead) {
         fetchNotifications();
       }
     }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications, isMarkingAllRead]);
 
+    return () => clearInterval(interval);
+  }, [fetchNotifications, isMarkingAllRead, fetchTrigger]);
+
+  // Listen for auth changes
+  useEffect(() => {
+    const handleAuthStateChanged = () => {
+      console.log(
+        "ActivityFeed: Auth state changed, retrying notification fetch"
+      );
+      // Use a trigger counter instead of directly calling to avoid dependency issues
+      setFetchTrigger((prev) => prev + 1);
+    };
+
+    window.addEventListener("auth-state-changed", handleAuthStateChanged);
+
+    return () => {
+      window.removeEventListener("auth-state-changed", handleAuthStateChanged);
+    };
+  }, []);
+
+  // Listen for game data updates
+  useEffect(() => {
+    const handleGameDataUpdated = () => {
+      console.log(
+        "ActivityFeed: Game data updated, retrying notification fetch"
+      );
+      setFetchTrigger((prev) => prev + 1);
+    };
+
+    window.addEventListener("game-data-updated", handleGameDataUpdated);
+
+    return () => {
+      window.removeEventListener("game-data-updated", handleGameDataUpdated);
+    };
+  }, []);
+
+  // Direct dependency on user changes
+  useEffect(() => {
+    if (user) {
+      console.log(
+        "ActivityFeed: User data updated, retrying notification fetch"
+      );
+      setFetchTrigger((prev) => prev + 1);
+    }
+  }, [user]);
+
+  // Direct dependency on game data changes
+  useEffect(() => {
+    if (lastUpdated && points > 0) {
+      console.log(
+        "ActivityFeed: Game stats updated, retrying notification fetch"
+      );
+      setFetchTrigger((prev) => prev + 1);
+    }
+  }, [lastUpdated, points]);
+
+  // Auto-retry if gamification updates happened
   useEffect(() => {
     if (
       userIsLoggedIn &&
@@ -101,6 +177,7 @@ export default function ActivityFeed() {
       notifications.length === 0 &&
       (points > 0 || level > 0 || badges.length > 0)
     ) {
+      console.log("ActivityFeed: Auto-retrying due to game data presence");
       fetchNotifications();
     }
   }, [
@@ -115,6 +192,11 @@ export default function ActivityFeed() {
 
   const markAsRead = async (id: string) => {
     try {
+      const storedToken = token || localStorage.getItem("access_token");
+      if (storedToken) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+      }
+
       await api.post(`/accounts/notifications-viewset/${id}/mark_read/`);
       setNotifications((prev) =>
         prev.map((notification) =>
@@ -126,21 +208,18 @@ export default function ActivityFeed() {
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
-      // Optimistic update
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === id
-            ? { ...notification, read: true }
-            : notification
-        )
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     }
   };
 
   const markAllAsRead = async () => {
     try {
       setIsMarkingAllRead(true);
+
+      const storedToken = token || localStorage.getItem("access_token");
+      if (storedToken) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+      }
+
       if (notifications.length > 0) {
         await api.post("/accounts/notifications-viewset/mark_all_read/");
       }
@@ -150,11 +229,6 @@ export default function ActivityFeed() {
       setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
-      // Optimistic update
-      setNotifications((prev) =>
-        prev.map((notification) => ({ ...notification, read: true }))
-      );
-      setUnreadCount(0);
     } finally {
       setIsMarkingAllRead(false);
     }
@@ -194,7 +268,20 @@ export default function ActivityFeed() {
     },
   };
 
-  if (!userIsLoggedIn && hasAttemptedFetch) {
+  // Allow more time for loading if we're in initial auth state
+  if (isLoading && !hasAttemptedFetch) {
+    return (
+      <div className="bg-[#1a1a22] rounded-lg p-6 text-white">
+        <div className="flex items-center">
+          <div className="animate-spin mr-2 h-4 w-4 border-2 border-purple-500 rounded-full border-t-transparent"></div>
+          Initializing authentication...
+        </div>
+      </div>
+    );
+  }
+
+  // Don't show login prompt too early - we may still be initializing
+  if (!userIsLoggedIn && hasAttemptedFetch && !loading) {
     return (
       <div className="bg-[#1a1a22] rounded-lg p-6">
         <h2 className="text-xl mb-4 flex items-center">
@@ -242,7 +329,10 @@ export default function ActivityFeed() {
       </div>
 
       {loading ? (
-        <div className="text-gray-400">Loading activities...</div>
+        <div className="text-gray-400 flex items-center">
+          <div className="animate-spin mr-2 h-4 w-4 border-2 border-purple-500 rounded-full border-t-transparent"></div>
+          Loading activities...
+        </div>
       ) : notifications.length === 0 ? (
         <div className="text-gray-400">
           No activities yet. Complete challenges to see your progress!
