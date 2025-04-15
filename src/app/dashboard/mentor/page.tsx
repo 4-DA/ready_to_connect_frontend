@@ -1,73 +1,37 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import MentorDashboard from "@/components/dashboards/MentorDashboard";
-import { useAuth } from "@/contexts/AuthContext";
 
-export default function MentorDashboardPage() {
-  const router = useRouter();
+import { useEffect, useState } from "react";
+import Sidebar from "@/components/Sidebar";
+import GamificationOverlay from "@/components/GamificationOverlay";
+import Calendar from "@/components/Calendar";
+import ActivityFeed from "@/components/ActivityFeed";
+import StatsCards from "@/components/StatsCard";
+import AssignedStudents from "@/components/dashboards/mentor/AssignedStudents";
+import { useTheme } from "@/app/providers/ThemeProvider";
+import api from "@/utils/api";
 
-  // Try/catch block to safely use AuthContext
-  let authContext;
-  try {
-    authContext = useAuth();
-  } catch (error) {
-    console.error("Error using AuthContext:", error);
-    // If AuthContext fails, redirect to signin
-    useEffect(() => {
-      router.push("/signin");
-    }, [router]);
+export default function MentorDashboard() {
+  const { user, loading } = useTheme();
 
-    return (
-      <div className="flex min-h-screen bg-[#0e0e13] items-center justify-center">
-        <div className="text-white text-xl">
-          Authentication error. Redirecting to login...
+  return (
+    <div className="flex min-h-screen bg-[#0e0e13] text-white relative">
+      <Sidebar />
+      <div className="flex-1 p-6 pl-20 relative z-10">
+        <header className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-white">
+            Welcome, {user?.full_name || "Mentor"}
+          </h1>
+        </header>
+
+        {/* <StatsCards /> */}
+        <AssignedStudents />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-12">
+          <Calendar />
+          <ActivityFeed />
         </div>
       </div>
-    );
-  }
-
-  // Destructure auth context if it's available
-  const { isAuthenticated, isLoading, user } = authContext || {};
-
-  // Debug logging
-  console.log("🔍 MentorDashboardPage - User:", user);
-  console.log("🔍 MentorDashboardPage - User Type:", user?.user_type);
-
-  // Check if user is authorized to view this page
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        router.push("/signin");
-        return;
-      }
-
-      if (user && user.user_type) {
-        const userType = String(user.user_type).toLowerCase().trim();
-        if (userType !== "mentor" && userType !== "teacher") {
-          console.log(
-            "User is not a mentor, redirecting to appropriate dashboard"
-          );
-          if (userType === "student") {
-            router.push("/dashboard/student");
-          } else {
-            router.push("/dashboard");
-          }
-        }
-      }
-    }
-  }, [isLoading, isAuthenticated, user, router]);
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen bg-[#0e0e13] items-center justify-center">
-        <div className="animate-pulse text-white text-xl">
-          Loading Mentor Dashboard...
-        </div>
-      </div>
-    );
-  }
-
-  return <MentorDashboard />;
+      <GamificationOverlay />
+    </div>
+  );
 }

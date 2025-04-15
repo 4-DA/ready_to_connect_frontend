@@ -26,7 +26,7 @@ export default function Signin() {
       // Remember the email for debugging purposes
       localStorage.setItem("last_login_email", user.email);
 
-      const response = await api.post("/auth/login", {
+      const response = await api.post("/accounts/auth/login/", {
         email: user.email,
         password: user.password,
       });
@@ -45,7 +45,7 @@ export default function Signin() {
       // After successful login, simply redirect to dashboard
       // The dashboard component will handle showing the correct dashboard type
       console.log("Login successful, redirecting to dashboard");
-      router.push("/dashboard");
+      router.push("/");
     } catch (err: any) {
       console.error("Login error:", err);
       setError(

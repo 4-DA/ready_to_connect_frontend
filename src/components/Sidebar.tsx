@@ -50,34 +50,35 @@ export default function Sidebar() {
               Authorization: `Bearer ${localStorage.getItem("access_token")}`,
             },
           });
-          const userRole = response.data.user_type || "student"; // Default to student
+          const userRole = response.data.user_type || "default";
 
           // Define nav items based on role
-          const baseNavItems: NavItem[] = [
-            { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
-            {
-              icon: <AutoAwesomeIcon />,
-              label: "AI Mentor",
-              href: "/ai-mentor",
-            },
-            // { icon: <GamesIcon />, label: "Gamification", href: "/gamification/" },
-            // { icon: <SignalCellularAltIcon />, label: "Leaderboard", href: "/gamification/leaderboard" },
-            // { icon: <StarIcon />, label: "Badges", href: "/gamification/badges" },
-            {
-              icon: <SchoolIcon />,
-              label: "Skill Assessment",
-              href: "/skill-assessment",
-            },
-            // { icon: <EmojiEventsIcon />, label: "XP History", href: "/gamification/xp-logs" },
+// Define full navigation items by role
+        const navMap: Record<string, NavItem[]> = {
+          student: [
+            { icon: <DashboardIcon />, label: "Dashboard", href: "/dashboard/student" },
+            { icon: <AutoAwesomeIcon />, label: "AI Mentor", href: "/ai-mentor" },
+            { icon: <SchoolIcon />, label: "Skill Assessment", href: "/skill-assessment" },
             { icon: <WorkIcon />, label: "Internships", href: "/internship" },
-          ];
+          ],
+          mentor: [
+            { icon: <DashboardIcon />, label: "Dashboard", href: "/dashboard/mentor" },
+            { icon: <SchoolIcon />, label: "Assigned Students", href: "/dashboard/mentor/mentees" },
+            { icon: <WorkIcon />, label: "Courses", href: "/dashboard/mentor/courses" },
+          ],
+          admin: [
+            { icon: <DashboardIcon />, label: "Dashboard", href: "/dashboard/admin" },
+            { icon: <SettingsIcon />, label: "Admin Tools", href: "/admin/settings" },
+          ],
+          default: [
+            { icon: <DashboardIcon />, label: "Dashboard", href: "/" },
+            { icon: <PersonIcon />, label: "Sign In", href: "/signin" },
+          ],
+        };
 
           // Role-specific restrictions (example)
-          const roleBasedItems = baseNavItems.filter((item) => {
-            if (!item.roles) return true; // Allow if no roles specified
-            return item.roles.includes(userRole);
-          });
-          setNavItems(roleBasedItems);
+          const roleItems = navMap[userRole.toLowerCase()] || navMap["default"];
+          setNavItems(roleItems);
         } catch (error) {
           console.error("Error fetching user role:", error);
         }
@@ -193,4 +194,3 @@ export default function Sidebar() {
     </>
   );
 }
-//test test
